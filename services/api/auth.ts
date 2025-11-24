@@ -30,7 +30,20 @@ export const authService = {
     if (!authData.session) throw new Error('Session creation failed');
 
     console.log('[AuthService] User authenticated, session active');
+    console.log('[AuthService] Auth user ID:', authData.user.id);
+    console.log('[AuthService] Session access token:', authData.session.access_token ? 'Present' : 'Missing');
+    
+    await supabase.auth.setSession({
+      access_token: authData.session.access_token,
+      refresh_token: authData.session.refresh_token,
+    });
+    
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
     console.log('[AuthService] Creating user profile for user:', authData.user.id);
+    
+    const { data: currentUser } = await supabase.auth.getUser();
+    console.log('[AuthService] Current auth user after session set:', currentUser?.user?.id);
     
     const { data: user, error: userError } = await supabase
       .from('users')
@@ -51,6 +64,12 @@ export const authService = {
       console.error('[AuthService] Profile creation error:', JSON.stringify(userError, null, 2));
       console.error('[AuthService] Auth user ID:', authData.user.id);
       console.error('[AuthService] Session:', authData.session ? 'Active' : 'None');
+      
+      if (userError.code === '42501') {
+        console.error('[AuthService] RLS Policy violation - auth.uid() does not match user.id');
+        console.error('[AuthService] Please verify RLS policies in Supabase dashboard');
+      }
+      
       throw new Error(userError.message || 'Failed to create user profile');
     }
     
@@ -282,6 +301,11 @@ export const authService = {
     const displayName = user.user_metadata?.full_name || user.user_metadata?.name || username;
     const avatar = user.user_metadata?.avatar_url || user.user_metadata?.picture || `https://api.dicebear.com/7.x/avataaars/png?seed=${user.id}`;
 
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    const { data: currentUser } = await supabase.auth.getUser();
+    console.log('[AuthService] Current auth user for OAuth:', currentUser?.user?.id);
+
     const { data: newProfile, error } = await supabase
       .from('users')
       .insert([{
@@ -297,6 +321,12 @@ export const authService = {
 
     if (error) {
       console.error('[AuthService] Failed to create OAuth profile:', JSON.stringify(error, null, 2));
+      
+      if (error.code === '42501') {
+        console.error('[AuthService] RLS Policy violation for OAuth user');
+        console.error('[AuthService] Please verify RLS policies allow user creation');
+      }
+      
       throw new Error(error.message || 'Failed to create user profile');
     }
 
