@@ -119,8 +119,7 @@ export default function InterestsScreen() {
             selectedInterests.length < 3 && styles.continueButtonDisabled,
           ]}
           onPress={handleContinue}
-          disabled={selectedInterests.length < 3}
-          activeOpacity={selectedInterests.length < 3 ? 1 : 0.7}
+          activeOpacity={0.7}
         >
           <Text style={[
             styles.continueButtonText,
