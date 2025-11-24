@@ -25,7 +25,7 @@ export const [UserProvider, useUser] = createContextHook(() => {
       if (session?.user) {
         setSupabaseUser(session.user);
         try {
-          await new Promise(resolve => setTimeout(resolve, 500));
+          await new Promise(resolve => setTimeout(resolve, 100));
           
           const profile = await authService.getUserProfile(session.user.id);
           console.log('[UserContext] Profile loaded:', profile ? 'Success' : 'Not found');
@@ -85,7 +85,7 @@ export const [UserProvider, useUser] = createContextHook(() => {
         if (session?.user) {
           setSupabaseUser(session.user);
           try {
-            await new Promise(resolve => setTimeout(resolve, 300));
+            await new Promise(resolve => setTimeout(resolve, 100));
             
             const profile = await authService.getUserProfile(session.user.id);
             console.log('[UserContext] Profile in auth state change:', profile ? 'Found' : 'Not found');

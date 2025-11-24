@@ -47,7 +47,7 @@ export const authService = {
     
     console.log('[AuthService] Creating user profile for user:', authData.user.id);
     
-    await new Promise(resolve => setTimeout(resolve, 300));
+    await new Promise(resolve => setTimeout(resolve, 50));
     
     const { data: user, error: userError } = await supabase
       .from('users')
@@ -311,7 +311,7 @@ export const authService = {
     const displayName = user.user_metadata?.full_name || user.user_metadata?.name || username;
     const avatar = user.user_metadata?.avatar_url || user.user_metadata?.picture || `https://api.dicebear.com/7.x/avataaars/png?seed=${user.id}`;
 
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise(resolve => setTimeout(resolve, 50));
     
     const { data: currentUser } = await supabase.auth.getUser();
     console.log('[AuthService] Current auth user for OAuth:', currentUser?.user?.id);

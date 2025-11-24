@@ -71,10 +71,22 @@ export default function AuthScreen() {
         await authService.signIn(email, password);
         console.log('[AuthScreen] Sign in successful');
         
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 1000));
         
-        console.log('[AuthScreen] Redirecting to onboarding to check profile');
-        router.replace('/onboarding');
+        const session = await authService.getSession();
+        if (session?.user) {
+          const profile = await authService.getUserProfile(session.user.id);
+          console.log('[AuthScreen] Profile check:', profile ? 'Found' : 'Not found');
+          
+          if (profile) {
+            console.log('[AuthScreen] Profile exists, redirecting to tabs');
+            router.replace('/(tabs)');
+          } else {
+            console.log('[AuthScreen] No profile, redirecting to onboarding');
+            router.replace('/onboarding/profile-setup');
+          }
+        }
+        return;
       } else {
         const profileData = {
           username,
@@ -89,24 +101,22 @@ export default function AuthScreen() {
         
         if (result.requiresEmailConfirmation) {
           Alert.alert(
-            'Almost There!',
-            'Your account has been created. Please check your email and click the confirmation link to activate your account. After confirming, you can sign in.',
+            'Check Your Email',
+            'Please verify your email address to complete registration. Check your inbox for a confirmation link.',
             [{ 
               text: 'OK',
               onPress: () => {
                 setMode('signin');
-                setEmail('');
-                setPassword('');
               }
             }]
           );
           return;
         }
         
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 1000));
         
-        console.log('[AuthScreen] Account created successfully, redirecting');
-        router.replace('/(tabs)');
+        console.log('[AuthScreen] Account created, redirecting to onboarding');
+        router.replace('/onboarding/profile-setup');
       }
     } catch (err: any) {
       const errorMessage = err?.message || 'Authentication failed. Please try again.';
@@ -125,10 +135,19 @@ export default function AuthScreen() {
     try {
       await authService.signInWithGoogle();
       
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
-      console.log('[AuthScreen] Redirecting to onboarding after Google sign in');
-      router.replace('/onboarding');
+      const session = await authService.getSession();
+      if (session?.user) {
+        const profile = await authService.getUserProfile(session.user.id);
+        if (profile) {
+          console.log('[AuthScreen] Google auth complete, redirecting to tabs');
+          router.replace('/(tabs)');
+        } else {
+          console.log('[AuthScreen] Google auth complete, needs profile setup');
+          router.replace('/onboarding/profile-setup');
+        }
+      }
     } catch (err: any) {
       const errorMessage = err?.message || 'Google sign in failed. Please try again.';
       console.error('[AuthScreen] Google auth error:', errorMessage, err);
@@ -146,10 +165,19 @@ export default function AuthScreen() {
     try {
       await authService.signInWithFacebook();
       
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
-      console.log('[AuthScreen] Redirecting to onboarding after Facebook sign in');
-      router.replace('/onboarding');
+      const session = await authService.getSession();
+      if (session?.user) {
+        const profile = await authService.getUserProfile(session.user.id);
+        if (profile) {
+          console.log('[AuthScreen] Facebook auth complete, redirecting to tabs');
+          router.replace('/(tabs)');
+        } else {
+          console.log('[AuthScreen] Facebook auth complete, needs profile setup');
+          router.replace('/onboarding/profile-setup');
+        }
+      }
     } catch (err: any) {
       const errorMessage = err?.message || 'Facebook sign in failed. Please try again.';
       console.error('[AuthScreen] Facebook auth error:', errorMessage, err);
