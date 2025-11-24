@@ -71,7 +71,11 @@ export default function AuthScreen() {
       if (mode === 'signin') {
         await authService.signIn(email, password);
         console.log('[AuthScreen] Sign in successful');
+        
+        await new Promise(resolve => setTimeout(resolve, 1000));
         await refreshUser();
+        
+        console.log('[AuthScreen] Redirecting to tabs');
         router.replace('/(tabs)');
       } else {
         const profileData = {
@@ -79,16 +83,19 @@ export default function AuthScreen() {
           display_name: displayName,
           avatar_url: avatarUri || selectedPreset,
         };
-        const result = await authService.signUp(email, password, profileData);
+        await authService.signUp(email, password, profileData);
         console.log('[AuthScreen] Sign up successful');
+        
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        await refreshUser();
         
         Alert.alert(
           'Success!',
           'Account created successfully!',
           [{ 
             text: 'OK', 
-            onPress: async () => {
-              await refreshUser();
+            onPress: () => {
+              console.log('[AuthScreen] Redirecting to tabs after signup');
               router.replace('/(tabs)');
             }
           }]
@@ -110,7 +117,11 @@ export default function AuthScreen() {
 
     try {
       await authService.signInWithGoogle();
+      
+      await new Promise(resolve => setTimeout(resolve, 1000));
       await refreshUser();
+      
+      console.log('[AuthScreen] Redirecting to tabs after Google sign in');
       router.replace('/(tabs)');
     } catch (err: any) {
       const errorMessage = err?.message || 'Google sign in failed. Please try again.';
@@ -128,7 +139,11 @@ export default function AuthScreen() {
 
     try {
       await authService.signInWithFacebook();
+      
+      await new Promise(resolve => setTimeout(resolve, 1000));
       await refreshUser();
+      
+      console.log('[AuthScreen] Redirecting to tabs after Facebook sign in');
       router.replace('/(tabs)');
     } catch (err: any) {
       const errorMessage = err?.message || 'Facebook sign in failed. Please try again.';

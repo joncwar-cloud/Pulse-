@@ -21,11 +21,15 @@ export const [UserProvider, useUser] = createContextHook(() => {
     
     authService.getSession().then(async (session) => {
       console.log('[UserContext] Initial session:', session ? 'Found' : 'None');
+      console.log('[UserContext] Session user ID:', session?.user?.id);
       if (session?.user) {
         setSupabaseUser(session.user);
         try {
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
           const profile = await authService.getUserProfile(session.user.id);
-          console.log('[UserContext] Profile loaded:', profile);
+          console.log('[UserContext] Profile loaded:', profile ? 'Success' : 'Not found');
+          console.log('[UserContext] Profile details:', JSON.stringify(profile, null, 2));
           
           if (profile) {
             const userProfile: UserProfile = {
@@ -51,6 +55,7 @@ export const [UserProvider, useUser] = createContextHook(() => {
               followingUsers: [],
               blockedUsers: [],
             };
+            console.log('[UserContext] Setting user profile in state');
             setUser(userProfile);
           } else {
             console.log('[UserContext] No profile found, user needs to complete setup');
@@ -59,21 +64,31 @@ export const [UserProvider, useUser] = createContextHook(() => {
         } catch (error: any) {
           const errorMessage = error?.message || 'Failed to load profile';
           console.error('[UserContext] Error loading profile:', errorMessage, error);
+          console.error('[UserContext] Full error object:', JSON.stringify(error, null, 2));
           setUser(null);
         }
       } else {
+        console.log('[UserContext] No session user, setting user to null');
         setUser(null);
       }
       setAuthLoading(false);
+    }).catch(error => {
+      console.error('[UserContext] Error getting initial session:', error);
+      setAuthLoading(false);
+      setUser(null);
     });
 
     const { data: { subscription } } = authService.onAuthStateChange(
       async (_event, session) => {
         console.log('[UserContext] Auth state changed:', _event);
+        console.log('[UserContext] Auth state session user ID:', session?.user?.id);
         if (session?.user) {
           setSupabaseUser(session.user);
           try {
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
             const profile = await authService.getUserProfile(session.user.id);
+            console.log('[UserContext] Profile in auth state change:', profile ? 'Found' : 'Not found');
             
             if (profile) {
               const userProfile: UserProfile = {
@@ -99,6 +114,7 @@ export const [UserProvider, useUser] = createContextHook(() => {
                 followingUsers: [],
                 blockedUsers: [],
               };
+              console.log('[UserContext] Setting user from auth state change');
               setUser(userProfile);
             } else {
               console.log('[UserContext] No profile found in auth state change');
@@ -106,10 +122,11 @@ export const [UserProvider, useUser] = createContextHook(() => {
             }
           } catch (error: any) {
             const errorMessage = error?.message || 'Failed to load profile';
-            console.error('[UserContext] Error loading profile:', errorMessage, error);
+            console.error('[UserContext] Error loading profile in auth state change:', errorMessage, error);
             setUser(null);
           }
         } else {
+          console.log('[UserContext] No session in auth state change');
           setUser(null);
           setSupabaseUser(null);
         }

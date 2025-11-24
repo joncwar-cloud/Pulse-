@@ -40,12 +40,17 @@ export default function FeedScreen() {
   const [showFilters, setShowFilters] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
-  const { user } = useUser();
+  const { user, isLoading: userLoading } = useUser();
 
   useEffect(() => {
+    if (userLoading) {
+      console.log('[FeedScreen] User data still loading...');
+      return;
+    }
+    
     console.log('[FeedScreen] Auth check - User:', !!user, 'Onboarded:', hasOnboarded);
     if (!user) {
-      console.log('[FeedScreen] No user, redirecting to onboarding welcome');
+      console.log('[FeedScreen] No user after loading complete, redirecting to onboarding');
       try {
         router.replace('/onboarding' as Href);
       } catch (error) {
@@ -59,7 +64,7 @@ export default function FeedScreen() {
         console.error('[FeedScreen] Error redirecting to profile setup:', error);
       }
     }
-  }, [user, hasOnboarded, router]);
+  }, [user, hasOnboarded, userLoading, router]);
 
   const feedItems = useMemo(() => {
     try {
@@ -136,15 +141,16 @@ export default function FeedScreen() {
     }
   };
 
-  if (hasOnboarded === undefined) {
+  if (userLoading || hasOnboarded === undefined) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <Activity size={48} color={PulseColors.dark.accent} />
+        <Text style={{ color: PulseColors.dark.textSecondary, marginTop: 16 }}>Loading...</Text>
       </View>
     );
   }
 
-  if (hasOnboarded === false) {
+  if (!user || hasOnboarded === false) {
     return null;
   }
 
