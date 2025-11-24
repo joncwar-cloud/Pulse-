@@ -35,6 +35,15 @@ function RootLayoutNav() {
     <Stack screenOptions={{ headerBackTitle: 'Back' }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen 
+        name="auth" 
+        options={{ 
+          headerShown: false, 
+          presentation: 'modal',
+          animation: 'slide_from_bottom',
+          gestureEnabled: false,
+        }} 
+      />
+      <Stack.Screen 
         name="onboarding" 
         options={{ 
           headerShown: false, 

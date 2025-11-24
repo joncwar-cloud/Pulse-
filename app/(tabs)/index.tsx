@@ -40,17 +40,26 @@ export default function FeedScreen() {
   const [showFilters, setShowFilters] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
+  const { user } = useUser();
+
   useEffect(() => {
-    console.log('[FeedScreen] Onboarding status:', hasOnboarded);
-    if (hasOnboarded === false) {
-      console.log('[FeedScreen] Redirecting to onboarding');
+    console.log('[FeedScreen] Auth check - User:', !!user, 'Onboarded:', hasOnboarded);
+    if (!user) {
+      console.log('[FeedScreen] No user, redirecting to onboarding welcome');
       try {
         router.replace('/onboarding' as Href);
       } catch (error) {
         console.error('[FeedScreen] Error redirecting to onboarding:', error);
       }
+    } else if (hasOnboarded === false) {
+      console.log('[FeedScreen] User exists but not onboarded, redirecting to profile setup');
+      try {
+        router.replace('/onboarding/profile-setup' as Href);
+      } catch (error) {
+        console.error('[FeedScreen] Error redirecting to profile setup:', error);
+      }
     }
-  }, [hasOnboarded, router]);
+  }, [user, hasOnboarded, router]);
 
   const feedItems = useMemo(() => {
     try {

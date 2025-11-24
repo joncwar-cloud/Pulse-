@@ -1,0 +1,412 @@
+import { Stack, useRouter } from 'expo-router';
+import { LogIn, Mail, Chrome, Facebook as FacebookIcon } from 'lucide-react-native';
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { PulseColors } from '@/constants/colors';
+import { authService } from '@/services/api/auth';
+import { useUser } from '@/contexts/UserContext';
+
+type AuthMode = 'signin' | 'signup';
+
+export default function AuthScreen() {
+  const router = useRouter();
+  const { refreshUser } = useUser();
+  const [mode, setMode] = useState<AuthMode>('signin');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('');
+  const [displayName, setDisplayName] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleEmailAuth = async () => {
+    setError(null);
+    
+    if (!email || !password) {
+      setError('Please fill in all required fields');
+      return;
+    }
+
+    if (mode === 'signup' && (!username || !displayName)) {
+      setError('Please fill in all required fields');
+      return;
+    }
+
+    setLoading(true);
+    console.log('[AuthScreen] Attempting', mode);
+
+    try {
+      if (mode === 'signin') {
+        await authService.signIn(email, password);
+        console.log('[AuthScreen] Sign in successful');
+        await refreshUser();
+        router.replace('/(tabs)');
+      } else {
+        await authService.signUp(email, password, {
+          username,
+          display_name: displayName,
+        });
+        console.log('[AuthScreen] Sign up successful');
+        Alert.alert(
+          'Success!',
+          'Account created successfully. Please check your email to verify your account.',
+          [{ text: 'OK', onPress: () => setMode('signin') }]
+        );
+      }
+    } catch (err: any) {
+      console.error('[AuthScreen] Auth error:', err);
+      setError(err.message || 'Authentication failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError(null);
+    setLoading(true);
+    console.log('[AuthScreen] Google sign in');
+
+    try {
+      await authService.signInWithGoogle();
+      await refreshUser();
+      router.replace('/(tabs)');
+    } catch (err: any) {
+      console.error('[AuthScreen] Google auth error:', err);
+      setError(err.message || 'Google sign in failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFacebookSignIn = async () => {
+    setError(null);
+    setLoading(true);
+    console.log('[AuthScreen] Facebook sign in');
+
+    try {
+      await authService.signInWithFacebook();
+      await refreshUser();
+      router.replace('/(tabs)');
+    } catch (err: any) {
+      console.error('[AuthScreen] Facebook auth error:', err);
+      setError(err.message || 'Facebook sign in failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleMode = () => {
+    setMode(mode === 'signin' ? 'signup' : 'signin');
+    setError(null);
+  };
+
+  return (
+    <View style={styles.container}>
+      <Stack.Screen options={{ headerShown: false }} />
+      
+      <LinearGradient
+        colors={[PulseColors.dark.background, PulseColors.dark.surface]}
+        style={StyleSheet.absoluteFill}
+      />
+
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.keyboardView}
+        >
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.header}>
+              <LogIn size={48} color={PulseColors.dark.accent} />
+              <Text style={styles.title}>
+                {mode === 'signin' ? 'Welcome Back' : 'Join Pulse'}
+              </Text>
+              <Text style={styles.subtitle}>
+                {mode === 'signin' 
+                  ? 'Sign in to continue to Pulse' 
+                  : 'Create your account to get started'}
+              </Text>
+            </View>
+
+            <View style={styles.form}>
+              {error && (
+                <View style={styles.errorContainer}>
+                  <Text style={styles.errorText}>{error}</Text>
+                </View>
+              )}
+
+              {mode === 'signup' && (
+                <>
+                  <View style={styles.inputContainer}>
+                    <Text style={styles.label}>Username</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={username}
+                      onChangeText={setUsername}
+                      placeholder="Choose a username"
+                      placeholderTextColor={PulseColors.dark.textTertiary}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      editable={!loading}
+                    />
+                  </View>
+
+                  <View style={styles.inputContainer}>
+                    <Text style={styles.label}>Display Name</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={displayName}
+                      onChangeText={setDisplayName}
+                      placeholder="Your display name"
+                      placeholderTextColor={PulseColors.dark.textTertiary}
+                      autoCorrect={false}
+                      editable={!loading}
+                    />
+                  </View>
+                </>
+              )}
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Email</Text>
+                <TextInput
+                  style={styles.input}
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="your@email.com"
+                  placeholderTextColor={PulseColors.dark.textTertiary}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={!loading}
+                />
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Password</Text>
+                <TextInput
+                  style={styles.input}
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="••••••••"
+                  placeholderTextColor={PulseColors.dark.textTertiary}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={!loading}
+                />
+              </View>
+
+              <TouchableOpacity
+                style={[styles.primaryButton, loading && styles.buttonDisabled]}
+                onPress={handleEmailAuth}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color={PulseColors.dark.text} />
+                ) : (
+                  <>
+                    <Mail size={20} color={PulseColors.dark.text} />
+                    <Text style={styles.primaryButtonText}>
+                      {mode === 'signin' ? 'Sign In with Email' : 'Sign Up with Email'}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              <View style={styles.divider}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>or continue with</Text>
+                <View style={styles.dividerLine} />
+              </View>
+
+              <View style={styles.socialButtons}>
+                <TouchableOpacity
+                  style={[styles.socialButton, loading && styles.buttonDisabled]}
+                  onPress={handleGoogleSignIn}
+                  disabled={loading}
+                >
+                  <Chrome size={24} color={PulseColors.dark.text} />
+                  <Text style={styles.socialButtonText}>Google</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.socialButton, loading && styles.buttonDisabled]}
+                  onPress={handleFacebookSignIn}
+                  disabled={loading}
+                >
+                  <FacebookIcon size={24} color={PulseColors.dark.text} />
+                  <Text style={styles.socialButtonText}>Facebook</Text>
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity
+                style={styles.toggleButton}
+                onPress={toggleMode}
+                disabled={loading}
+              >
+                <Text style={styles.toggleText}>
+                  {mode === 'signin' 
+                    ? "Don't have an account? " 
+                    : 'Already have an account? '}
+                  <Text style={styles.toggleTextBold}>
+                    {mode === 'signin' ? 'Sign Up' : 'Sign In'}
+                  </Text>
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  safeArea: {
+    flex: 1,
+  },
+  keyboardView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingVertical: 40,
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: 40,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: '900' as const,
+    color: PulseColors.dark.text,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: PulseColors.dark.textSecondary,
+    textAlign: 'center',
+  },
+  form: {
+    gap: 16,
+  },
+  errorContainer: {
+    backgroundColor: 'rgba(255, 59, 48, 0.1)',
+    borderWidth: 1,
+    borderColor: '#ff3b30',
+    borderRadius: 12,
+    padding: 12,
+  },
+  errorText: {
+    color: '#ff3b30',
+    fontSize: 14,
+    fontWeight: '600' as const,
+    textAlign: 'center',
+  },
+  inputContainer: {
+    gap: 8,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: PulseColors.dark.textSecondary,
+  },
+  input: {
+    backgroundColor: PulseColors.dark.surface,
+    borderWidth: 2,
+    borderColor: PulseColors.dark.border,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    color: PulseColors.dark.text,
+  },
+  primaryButton: {
+    backgroundColor: PulseColors.dark.accent,
+    borderRadius: 12,
+    paddingVertical: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 8,
+  },
+  primaryButtonText: {
+    color: PulseColors.dark.text,
+    fontSize: 16,
+    fontWeight: '700' as const,
+  },
+  buttonDisabled: {
+    opacity: 0.5,
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 16,
+    gap: 12,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: PulseColors.dark.border,
+  },
+  dividerText: {
+    fontSize: 14,
+    color: PulseColors.dark.textTertiary,
+    fontWeight: '600' as const,
+  },
+  socialButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  socialButton: {
+    flex: 1,
+    backgroundColor: PulseColors.dark.surface,
+    borderWidth: 2,
+    borderColor: PulseColors.dark.border,
+    borderRadius: 12,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  socialButtonText: {
+    color: PulseColors.dark.text,
+    fontSize: 15,
+    fontWeight: '600' as const,
+  },
+  toggleButton: {
+    marginTop: 24,
+    alignItems: 'center',
+  },
+  toggleText: {
+    fontSize: 15,
+    color: PulseColors.dark.textSecondary,
+  },
+  toggleTextBold: {
+    fontWeight: '700' as const,
+    color: PulseColors.dark.accent,
+  },
+});

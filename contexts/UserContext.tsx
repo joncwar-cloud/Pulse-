@@ -1,64 +1,152 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { UserProfile, AuthProvider } from '@/types';
+import { authService } from '@/services/api/auth';
+import { User as SupabaseUser } from '@supabase/supabase-js';
 
-const STORAGE_KEY_USER = 'user_profile';
 const STORAGE_KEY_ONBOARDED = 'has_onboarded';
 
 export const [UserProvider, useUser] = createContextHook(() => {
+  const queryClient = useQueryClient();
   const [user, setUser] = useState<UserProfile | null>(null);
+  const [supabaseUser, setSupabaseUser] = useState<SupabaseUser | null>(null);
   const [hasOnboarded, setHasOnboarded] = useState<boolean | undefined>(undefined);
+  const [authLoading, setAuthLoading] = useState(true);
 
-  const userQuery = useQuery({
-    queryKey: ['userProfile'],
-    queryFn: async () => {
-      try {
-        const stored = await AsyncStorage.getItem(STORAGE_KEY_USER);
-        if (!stored) return null;
-        return JSON.parse(stored);
-      } catch (error) {
-        console.error('[UserContext] Error loading user:', error);
-        await AsyncStorage.removeItem(STORAGE_KEY_USER);
-        return null;
+  useEffect(() => {
+    console.log('[UserContext] Setting up auth listener');
+    setAuthLoading(true);
+    
+    authService.getSession().then(async (session) => {
+      console.log('[UserContext] Initial session:', session ? 'Found' : 'None');
+      if (session?.user) {
+        setSupabaseUser(session.user);
+        try {
+          const profile = await authService.getUserProfile(session.user.id);
+          console.log('[UserContext] Profile loaded:', profile);
+          const userProfile: UserProfile = {
+            id: profile.id,
+            username: profile.username,
+            displayName: profile.display_name,
+            email: profile.email,
+            avatar: profile.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.username}`,
+            verified: profile.verified || false,
+            isPremium: profile.is_premium || false,
+            authProvider: (profile.auth_provider || 'email') as AuthProvider,
+            interests: profile.interests || [],
+            following: profile.following_count || 0,
+            followers: profile.followers_count || 0,
+            posts: profile.posts_count || 0,
+            dateOfBirth: profile.date_of_birth ? new Date(profile.date_of_birth) : undefined,
+            isCreator: profile.is_creator || false,
+            creatorTier: profile.creator_tier || 'basic',
+            walletBalance: profile.wallet_balance || 0,
+            lifetimeEarnings: profile.lifetime_earnings || 0,
+            subscriberCount: profile.subscriber_count || 0,
+            monthlyRevenue: profile.monthly_revenue || 0,
+            followingUsers: [],
+            blockedUsers: [],
+          };
+          setUser(userProfile);
+        } catch (error) {
+          console.error('[UserContext] Error loading profile:', error);
+          setUser(null);
+        }
+      } else {
+        setUser(null);
       }
-    },
-  });
+      setAuthLoading(false);
+    });
+
+    const { data: { subscription } } = authService.onAuthStateChange(
+      async (_event, session) => {
+        console.log('[UserContext] Auth state changed:', _event);
+        if (session?.user) {
+          setSupabaseUser(session.user);
+          try {
+            const profile = await authService.getUserProfile(session.user.id);
+            const userProfile: UserProfile = {
+              id: profile.id,
+              username: profile.username,
+              displayName: profile.display_name,
+              email: profile.email,
+              avatar: profile.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.username}`,
+              verified: profile.verified || false,
+              isPremium: profile.is_premium || false,
+              authProvider: (profile.auth_provider || 'email') as AuthProvider,
+              interests: profile.interests || [],
+              following: profile.following_count || 0,
+              followers: profile.followers_count || 0,
+              posts: profile.posts_count || 0,
+              dateOfBirth: profile.date_of_birth ? new Date(profile.date_of_birth) : undefined,
+              isCreator: profile.is_creator || false,
+              creatorTier: profile.creator_tier || 'basic',
+              walletBalance: profile.wallet_balance || 0,
+              lifetimeEarnings: profile.lifetime_earnings || 0,
+              subscriberCount: profile.subscriber_count || 0,
+              monthlyRevenue: profile.monthly_revenue || 0,
+              followingUsers: [],
+              blockedUsers: [],
+            };
+            setUser(userProfile);
+          } catch (error) {
+            console.error('[UserContext] Error loading profile:', error);
+          }
+        } else {
+          setUser(null);
+          setSupabaseUser(null);
+        }
+        setAuthLoading(false);
+      }
+    );
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const onboardedQuery = useQuery({
-    queryKey: ['hasOnboarded'],
+    queryKey: ['hasOnboarded', user?.id],
     queryFn: async () => {
+      if (!user?.id) return false;
       try {
-        const stored = await AsyncStorage.getItem(STORAGE_KEY_ONBOARDED);
+        const stored = await AsyncStorage.getItem(`${STORAGE_KEY_ONBOARDED}_${user.id}`);
         return stored === 'true';
       } catch (error) {
         console.error('[UserContext] Error loading onboarding status:', error);
         return false;
       }
     },
+    enabled: !!user?.id,
   });
 
   const saveUserMutation = useMutation({
-    mutationFn: async (newUser: UserProfile) => {
-      await AsyncStorage.setItem(STORAGE_KEY_USER, JSON.stringify(newUser));
-      return newUser;
+    mutationFn: async (updates: Partial<UserProfile>) => {
+      if (!user?.id) throw new Error('No user to update');
+      const updated = await authService.updateUserProfile(user.id, {
+        username: updates.username,
+        display_name: updates.displayName,
+        avatar_url: updates.avatar,
+        interests: updates.interests,
+        date_of_birth: updates.dateOfBirth?.toISOString(),
+        is_creator: updates.isCreator,
+        creator_tier: updates.creatorTier,
+      });
+      return updated;
     },
   });
 
   const saveOnboardedMutation = useMutation({
     mutationFn: async (value: boolean) => {
-      await AsyncStorage.setItem(STORAGE_KEY_ONBOARDED, value.toString());
+      if (!user?.id) throw new Error('No user to update');
+      await AsyncStorage.setItem(`${STORAGE_KEY_ONBOARDED}_${user.id}`, value.toString());
       return value;
     },
   });
 
-  useEffect(() => {
-    if (userQuery.data !== undefined) {
-      console.log('[UserContext] User data loaded:', userQuery.data);
-      setUser(userQuery.data);
-    }
-  }, [userQuery.data]);
+
 
   useEffect(() => {
     if (onboardedQuery.data !== undefined) {
@@ -70,67 +158,91 @@ export const [UserProvider, useUser] = createContextHook(() => {
     }
   }, [onboardedQuery.data, onboardedQuery.isLoading]);
 
-  const signIn = (authProvider: AuthProvider) => {
-    console.log('[UserContext] Signing in with:', authProvider);
-    const mockUser: UserProfile = {
-      id: `user_${Date.now()}`,
-      username: `user${Math.floor(Math.random() * 10000)}`,
-      displayName: 'Guest User',
-      avatar: 'https://i.pravatar.cc/150?img=12',
-      verified: false,
-      isPremium: false,
-      authProvider,
-      interests: [],
-      following: 128,
-      followers: 546,
-      posts: 23,
-      isCreator: false,
-      creatorTier: 'basic',
-      walletBalance: 0,
-      lifetimeEarnings: 0,
-      subscriberCount: 12,
-      monthlyRevenue: 0,
-      followingUsers: [],
-      blockedUsers: [],
-    };
-    setUser(mockUser);
-    saveUserMutation.mutate(mockUser);
+  const refreshUser = async () => {
+    console.log('[UserContext] Refreshing user data');
+    try {
+      const session = await authService.getSession();
+      if (session?.user) {
+        const profile = await authService.getUserProfile(session.user.id);
+        const userProfile: UserProfile = {
+          id: profile.id,
+          username: profile.username,
+          displayName: profile.display_name,
+          email: profile.email,
+          avatar: profile.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.username}`,
+          verified: profile.verified || false,
+          isPremium: profile.is_premium || false,
+          authProvider: (profile.auth_provider || 'email') as AuthProvider,
+          interests: profile.interests || [],
+          following: profile.following_count || 0,
+          followers: profile.followers_count || 0,
+          posts: profile.posts_count || 0,
+          dateOfBirth: profile.date_of_birth ? new Date(profile.date_of_birth) : undefined,
+          isCreator: profile.is_creator || false,
+          creatorTier: profile.creator_tier || 'basic',
+          walletBalance: profile.wallet_balance || 0,
+          lifetimeEarnings: profile.lifetime_earnings || 0,
+          subscriberCount: profile.subscriber_count || 0,
+          monthlyRevenue: profile.monthly_revenue || 0,
+          followingUsers: [],
+          blockedUsers: [],
+        };
+        setUser(userProfile);
+      }
+    } catch (error) {
+      console.error('[UserContext] Error refreshing user:', error);
+    }
   };
 
   const signOut = async () => {
-    setUser(null);
-    await AsyncStorage.removeItem(STORAGE_KEY_USER);
+    console.log('[UserContext] Signing out');
+    try {
+      await authService.signOut();
+      setUser(null);
+      setSupabaseUser(null);
+      queryClient.clear();
+    } catch (error) {
+      console.error('[UserContext] Error signing out:', error);
+    }
   };
 
-  const updateProfile = (updates: Partial<UserProfile>) => {
+  const updateProfile = async (updates: Partial<UserProfile>) => {
     if (!user) return;
+    console.log('[UserContext] Updating profile:', updates);
     const updated = { ...user, ...updates };
     setUser(updated);
-    saveUserMutation.mutate(updated);
+    try {
+      await saveUserMutation.mutateAsync(updates);
+      await refreshUser();
+    } catch (error) {
+      console.error('[UserContext] Error updating profile:', error);
+      setUser(user);
+    }
   };
 
-  const completeOnboarding = (interests: string[], dateOfBirth: Date) => {
+  const completeOnboarding = async (interests: string[], dateOfBirth: Date) => {
     console.log('[UserContext] Completing onboarding with interests:', interests);
     const age = new Date().getFullYear() - dateOfBirth.getFullYear();
     const shouldActivateChildMode = age < 18;
     console.log('[UserContext] User age:', age, 'Child mode:', shouldActivateChildMode);
 
     if (user) {
-      updateProfile({
+      await updateProfile({
         interests,
         dateOfBirth,
       });
     }
 
     setHasOnboarded(true);
-    saveOnboardedMutation.mutate(true);
+    await saveOnboardedMutation.mutateAsync(true);
 
     return shouldActivateChildMode;
   };
 
   const resetOnboarding = async () => {
+    if (!user?.id) return;
     setHasOnboarded(false);
-    await AsyncStorage.removeItem(STORAGE_KEY_ONBOARDED);
+    await AsyncStorage.removeItem(`${STORAGE_KEY_ONBOARDED}_${user.id}`);
   };
 
   const followUser = (userId: string) => {
@@ -206,10 +318,11 @@ export const [UserProvider, useUser] = createContextHook(() => {
 
   return {
     user,
+    supabaseUser,
     hasOnboarded,
-    signIn,
     signOut,
     updateProfile,
+    refreshUser,
     completeOnboarding,
     resetOnboarding,
     followUser,
@@ -218,6 +331,6 @@ export const [UserProvider, useUser] = createContextHook(() => {
     unblockUser,
     isFollowing,
     isBlocked,
-    isLoading: userQuery.isLoading || onboardedQuery.isLoading,
+    isLoading: authLoading || onboardedQuery.isLoading,
   };
 });

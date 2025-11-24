@@ -17,17 +17,18 @@ export default function AgeVerificationScreen() {
   const [dateOfBirth, setDateOfBirth] = useState<Date>(new Date(2000, 0, 1));
   const [showPicker, setShowPicker] = useState(false);
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     const parsedInterests = params.interests ? JSON.parse(params.interests) : [];
-    const shouldActivateChildMode = completeOnboarding(parsedInterests, dateOfBirth);
 
     if (params.username && params.displayName && params.avatar) {
-      updateProfile({
+      await updateProfile({
         username: params.username,
         displayName: params.displayName,
         avatar: params.avatar,
       });
     }
+
+    const shouldActivateChildMode = await completeOnboarding(parsedInterests, dateOfBirth);
 
     if (shouldActivateChildMode) {
       updateFilters({

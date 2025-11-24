@@ -1,23 +1,28 @@
 import { useRouter } from 'expo-router';
-import { Activity, Apple, Chrome } from 'lucide-react-native';
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { Activity, LogIn } from 'lucide-react-native';
+import React, { useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { PulseColors } from '@/constants/colors';
 import { useUser } from '@/contexts/UserContext';
-import { AuthProvider } from '@/types';
 
 export default function WelcomeScreen() {
   const router = useRouter();
-  const { signIn } = useUser();
-  const [isLoading, setIsLoading] = useState<AuthProvider | null>(null);
+  const { user, hasOnboarded } = useUser();
 
-  const handleAuth = async (provider: AuthProvider) => {
-    setIsLoading(provider);
-    await new Promise(resolve => setTimeout(resolve, 800));
-    signIn(provider);
-    setIsLoading(null);
-    router.push('/onboarding/profile-setup');
+  useEffect(() => {
+    if (user && hasOnboarded) {
+      console.log('[WelcomeScreen] User authenticated and onboarded, redirecting to tabs');
+      router.replace('/(tabs)');
+    } else if (user && hasOnboarded === false) {
+      console.log('[WelcomeScreen] User authenticated but not onboarded, redirecting to profile setup');
+      router.replace('/onboarding/profile-setup');
+    }
+  }, [user, hasOnboarded, router]);
+
+  const handleGetStarted = () => {
+    console.log('[WelcomeScreen] Redirecting to auth screen');
+    router.push('/auth');
   };
 
   return (
@@ -38,42 +43,13 @@ export default function WelcomeScreen() {
           </Text>
         </View>
 
-        <View style={styles.authButtons}>
-          {Platform.OS === 'ios' && (
-            <TouchableOpacity
-              style={[styles.authButton, styles.appleButton]}
-              onPress={() => handleAuth('apple')}
-              disabled={isLoading !== null}
-            >
-              <Apple size={24} color="#FFFFFF" />
-              <Text style={styles.authButtonText}>
-                {isLoading === 'apple' ? 'Signing in...' : 'Continue with Apple'}
-              </Text>
-            </TouchableOpacity>
-          )}
-
+        <View style={styles.actionContainer}>
           <TouchableOpacity
-            style={[styles.authButton, styles.googleButton]}
-            onPress={() => handleAuth('google')}
-            disabled={isLoading !== null}
+            style={styles.getStartedButton}
+            onPress={handleGetStarted}
           >
-            <Chrome size={24} color="#FFFFFF" />
-            <Text style={styles.authButtonText}>
-              {isLoading === 'google' ? 'Signing in...' : 'Continue with Google'}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.authButton, styles.facebookButton]}
-            onPress={() => handleAuth('facebook')}
-            disabled={isLoading !== null}
-          >
-            <View style={styles.facebookIcon}>
-              <Text style={styles.facebookIconText}>f</Text>
-            </View>
-            <Text style={styles.authButtonText}>
-              {isLoading === 'facebook' ? 'Signing in...' : 'Continue with Facebook'}
-            </Text>
+            <LogIn size={24} color="#FFFFFF" />
+            <Text style={styles.getStartedText}>Get Started</Text>
           </TouchableOpacity>
         </View>
 
@@ -131,43 +107,22 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 26,
   },
-  authButtons: {
+  actionContainer: {
     gap: 16,
   },
-  authButton: {
+  getStartedButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 18,
+    paddingVertical: 20,
     borderRadius: 16,
+    backgroundColor: PulseColors.dark.accent,
     gap: 12,
   },
-  appleButton: {
-    backgroundColor: '#000000',
-  },
-  googleButton: {
-    backgroundColor: '#4285F4',
-  },
-  facebookButton: {
-    backgroundColor: '#1877F2',
-  },
-  authButtonText: {
-    fontSize: 17,
-    fontWeight: '700' as const,
-    color: '#FFFFFF',
-  },
-  facebookIcon: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  facebookIconText: {
+  getStartedText: {
     fontSize: 18,
-    fontWeight: '700' as const,
-    color: '#1877F2',
+    fontWeight: '900' as const,
+    color: '#FFFFFF',
   },
   disclaimer: {
     fontSize: 13,
