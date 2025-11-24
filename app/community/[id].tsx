@@ -103,7 +103,7 @@ export default function CommunityDetailScreen() {
               try {
                 await navigator.clipboard.writeText(`${shareContent.message}\n${shareContent.url}`);
                 Alert.alert('Link Copied', 'The post link has been copied to your clipboard!');
-              } catch (clipboardError) {
+              } catch {
                 console.log('[Community] Clipboard not available, showing link instead');
                 Alert.alert('Share Link', shareContent.url, [
                   { text: 'OK', style: 'default' }
@@ -115,7 +115,7 @@ export default function CommunityDetailScreen() {
           try {
             await navigator.clipboard.writeText(`${shareContent.message}\n${shareContent.url}`);
             Alert.alert('Link Copied', 'The post link has been copied to your clipboard!');
-          } catch (clipboardError) {
+          } catch {
             console.log('[Community] Clipboard not available, showing link instead');
             Alert.alert('Share Link', shareContent.url, [
               { text: 'OK', style: 'default' }
@@ -226,7 +226,7 @@ Write the post content only, no title needed:`;
         clearInterval(autoGenerateIntervalRef.current);
       }
     };
-  }, [community?.id, aiModerator]);
+  }, [community?.id, community?.name, aiModerator]);
 
   if (!community) {
     return (
