@@ -33,27 +33,33 @@ export default function InterestsScreen() {
     console.log('[Interests] Continue button pressed');
     console.log('[Interests] Selected interests:', selectedInterests);
     console.log('[Interests] Selected count:', selectedInterests.length);
+    console.log('[Interests] Button disabled state:', selectedInterests.length < 3);
     
     if (selectedInterests.length < 3) {
-      console.log('[Interests] Not enough interests selected');
+      console.log('[Interests] Not enough interests selected, blocking navigation');
       return;
     }
     
     try {
-      console.log('[Interests] Navigating to age verification');
+      console.log('[Interests] Navigating to age verification...');
       console.log('[Interests] Current params:', params);
+      
+      const navigationParams = { 
+        ...params,
+        interests: JSON.stringify(selectedInterests) 
+      };
+      
+      console.log('[Interests] Navigation params:', navigationParams);
       
       router.push({
         pathname: '/onboarding/age-verification',
-        params: { 
-          ...params,
-          interests: JSON.stringify(selectedInterests) 
-        },
+        params: navigationParams,
       });
       
-      console.log('[Interests] Navigation initiated successfully');
+      console.log('[Interests] Navigation call completed');
     } catch (error) {
       console.error('[Interests] Navigation error:', error);
+      console.error('[Interests] Error details:', JSON.stringify(error));
     }
   };
 
@@ -113,8 +119,7 @@ export default function InterestsScreen() {
             selectedInterests.length < 3 && styles.continueButtonDisabled,
           ]}
           onPress={handleContinue}
-          disabled={selectedInterests.length < 3}
-          activeOpacity={selectedInterests.length < 3 ? 1 : 0.7}
+          activeOpacity={0.7}
         >
           <Text style={[
             styles.continueButtonText,
