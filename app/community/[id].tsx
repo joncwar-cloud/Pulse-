@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
-import { ArrowLeft, Users, TrendingUp, MessageCircle, Shield, Sparkles, Zap, Loader, Heart, Share2, CheckCircle, Crown, Send, X } from 'lucide-react-native';
+import { ArrowLeft, Users, TrendingUp, MessageCircle, Shield, Sparkles, Zap, Loader, Heart, Share2, CheckCircle, Crown } from 'lucide-react-native';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, FlatList, ScrollView, Modal, TextInput, KeyboardAvoidingView, Platform, Share as RNShare, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, FlatList, ScrollView, Modal, Platform, Share as RNShare, Alert } from 'react-native';
 import { Image } from 'expo-image';
 import { useMutation } from '@tanstack/react-query';
 import { generateText } from '@rork-ai/toolkit-sdk';
@@ -12,6 +12,7 @@ import { useCommunities } from '@/contexts/CommunityContext';
 import { mockPosts } from '@/mocks/posts';
 import { Post } from '@/types';
 import PostCard from '@/components/PostCard';
+import CommentViewer from '@/components/CommentViewer';
 
 
 
@@ -42,7 +43,6 @@ export default function CommunityDetailScreen() {
   const [liked, setLiked] = useState(false);
   const [commentModalVisible, setCommentModalVisible] = useState(false);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
-  const [commentText, setCommentText] = useState('');
   const flatListRef = useRef<FlatList>(null);
   const autoGenerateIntervalRef = useRef<number | null>(null);
 
@@ -91,12 +91,19 @@ export default function CommunityDetailScreen() {
       };
 
       if (Platform.OS === 'web') {
-        if (navigator.share) {
-          await navigator.share({
-            title: post.title || 'Pulse Post',
-            text: shareContent.message,
-            url: shareContent.url,
-          });
+        if (navigator.share && navigator.canShare && navigator.canShare({ url: shareContent.url })) {
+          try {
+            await navigator.share({
+              title: post.title || 'Pulse Post',
+              text: shareContent.message,
+              url: shareContent.url,
+            });
+          } catch (shareError: any) {
+            if (shareError.name !== 'AbortError') {
+              await navigator.clipboard.writeText(`${shareContent.message}\n${shareContent.url}`);
+              Alert.alert('Link Copied', 'The post link has been copied to your clipboard!');
+            }
+          }
         } else {
           await navigator.clipboard.writeText(`${shareContent.message}\n${shareContent.url}`);
           Alert.alert('Link Copied', 'The post link has been copied to your clipboard!');
@@ -119,15 +126,6 @@ export default function CommunityDetailScreen() {
   const handleComment = (post: Post) => {
     setSelectedPost(post);
     setCommentModalVisible(true);
-  };
-
-  const handleSendComment = () => {
-    if (!commentText.trim() || !selectedPost) return;
-    
-    console.log('[Community] Sending comment:', commentText, 'for post:', selectedPost.id);
-    Alert.alert('Comment Posted', 'Your comment has been posted successfully!');
-    setCommentText('');
-    setCommentModalVisible(false);
   };
 
   const formatNumber = (num: number) => {
@@ -495,64 +493,19 @@ Write the post content only, no title needed:`;
         </ScrollView>
       )}
 
-      <Modal
-        visible={commentModalVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setCommentModalVisible(false)}
-      >
-        <KeyboardAvoidingView 
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.modalOverlay}
+      {selectedPost && (
+        <Modal
+          visible={commentModalVisible}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setCommentModalVisible(false)}
         >
-          <TouchableOpacity 
-            style={styles.modalBackdrop} 
-            activeOpacity={1} 
-            onPress={() => setCommentModalVisible(false)}
+          <CommentViewer 
+            postId={selectedPost.id} 
+            onClose={() => setCommentModalVisible(false)} 
           />
-          <View style={styles.commentModal}>
-            <View style={styles.commentModalHeader}>
-              <Text style={styles.commentModalTitle}>Add Comment</Text>
-              <TouchableOpacity onPress={() => setCommentModalVisible(false)}>
-                <X size={24} color={PulseColors.dark.text} />
-              </TouchableOpacity>
-            </View>
-            
-            {selectedPost && (
-              <View style={styles.commentPostPreview}>
-                <Image source={{ uri: selectedPost.user.avatar }} style={styles.commentUserAvatar} />
-                <View style={styles.commentPostInfo}>
-                  <Text style={styles.commentUserName}>{selectedPost.user.displayName}</Text>
-                  <Text style={styles.commentPostText} numberOfLines={2}>{selectedPost.content}</Text>
-                </View>
-              </View>
-            )}
-            
-            <View style={styles.commentInputContainer}>
-              <TextInput
-                style={styles.commentInput}
-                placeholder="Write a comment..."
-                placeholderTextColor={PulseColors.dark.textTertiary}
-                value={commentText}
-                onChangeText={setCommentText}
-                multiline
-                autoFocus
-              />
-            </View>
-            
-            <TouchableOpacity 
-              style={[styles.sendButton, !commentText.trim() && styles.sendButtonDisabled]}
-              onPress={handleSendComment}
-              disabled={!commentText.trim()}
-            >
-              <Send size={20} color={commentText.trim() ? '#FFFFFF' : PulseColors.dark.textTertiary} />
-              <Text style={[styles.sendButtonText, !commentText.trim() && styles.sendButtonTextDisabled]}>
-                Post Comment
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+        </Modal>
+      )}
     </SafeAreaView>
   );
 }

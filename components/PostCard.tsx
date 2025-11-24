@@ -1,12 +1,13 @@
 import { Image } from 'expo-image';
-import { Heart, MessageCircle, Share2, CheckCircle, Crown, Bookmark, MapPin, DollarSign, Gift, Send, X } from 'lucide-react-native';
+import { Heart, MessageCircle, Share2, CheckCircle, Crown, Bookmark, MapPin, DollarSign, Gift } from 'lucide-react-native';
 import React, { useState, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Pressable, Dimensions, Alert, Modal, Share, Platform, TextInput, KeyboardAvoidingView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Pressable, Dimensions, Alert, Modal, Share, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Post } from '@/types';
 import { PulseColors } from '@/constants/colors';
 import { useMonetization } from '@/contexts/MonetizationContext';
+import CommentViewer from '@/components/CommentViewer';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -23,7 +24,6 @@ export default function PostCard({ post, onPress, isActive }: PostCardProps) {
   const [likeCount, setLikeCount] = useState(post?.votes || 0);
   const [showTipModal, setShowTipModal] = useState(false);
   const [showCommentModal, setShowCommentModal] = useState(false);
-  const [commentText, setCommentText] = useState('');
   const { wallet, sendTip, spendCoins } = useMonetization();
 
   const tipAmounts = [10, 25, 50, 100, 250, 500];
@@ -93,12 +93,19 @@ export default function PostCard({ post, onPress, isActive }: PostCardProps) {
       };
 
       if (Platform.OS === 'web') {
-        if (navigator.share) {
-          await navigator.share({
-            title: post.title || 'Pulse Post',
-            text: shareContent.message,
-            url: shareContent.url,
-          });
+        if (navigator.share && navigator.canShare && navigator.canShare({ url: shareContent.url })) {
+          try {
+            await navigator.share({
+              title: post.title || 'Pulse Post',
+              text: shareContent.message,
+              url: shareContent.url,
+            });
+          } catch (shareError: any) {
+            if (shareError.name !== 'AbortError') {
+              await navigator.clipboard.writeText(`${shareContent.message}\n${shareContent.url}`);
+              Alert.alert('Link Copied', 'The post link has been copied to your clipboard!');
+            }
+          }
         } else {
           await navigator.clipboard.writeText(`${shareContent.message}\n${shareContent.url}`);
           Alert.alert('Link Copied', 'The post link has been copied to your clipboard!');
@@ -114,22 +121,12 @@ export default function PostCard({ post, onPress, isActive }: PostCardProps) {
       }
     } catch (error) {
       console.error('Error sharing post:', error);
-      Alert.alert('Error', 'Failed to share the post. Please try again.');
     }
   }, [post]);
 
   const handleComment = useCallback(() => {
     setShowCommentModal(true);
   }, []);
-
-  const handleSendComment = useCallback(() => {
-    if (!commentText.trim()) return;
-    
-    console.log('[PostCard] Sending comment:', commentText, 'for post:', post.id);
-    Alert.alert('Comment Posted', 'Your comment has been posted successfully!');
-    setCommentText('');
-    setShowCommentModal(false);
-  }, [commentText, post.id]);
 
 
 
@@ -241,55 +238,10 @@ export default function PostCard({ post, onPress, isActive }: PostCardProps) {
         animationType="slide"
         onRequestClose={() => setShowCommentModal(false)}
       >
-        <KeyboardAvoidingView 
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.commentModalOverlay}
-        >
-          <TouchableOpacity 
-            style={styles.commentModalBackdrop} 
-            activeOpacity={1} 
-            onPress={() => setShowCommentModal(false)}
-          />
-          <View style={styles.commentModalContainer}>
-            <View style={styles.commentModalHeader}>
-              <Text style={styles.commentModalTitle}>Add Comment</Text>
-              <TouchableOpacity onPress={() => setShowCommentModal(false)}>
-                <X size={24} color={PulseColors.dark.text} />
-              </TouchableOpacity>
-            </View>
-            
-            <View style={styles.commentPostPreview}>
-              <Image source={{ uri: post.user.avatar }} style={styles.commentUserAvatar} />
-              <View style={styles.commentPostInfo}>
-                <Text style={styles.commentUserName}>{post.user.displayName}</Text>
-                <Text style={styles.commentPostText} numberOfLines={2}>{post.content}</Text>
-              </View>
-            </View>
-            
-            <View style={styles.commentInputWrapper}>
-              <TextInput
-                style={styles.commentInput}
-                placeholder="Write a comment..."
-                placeholderTextColor={PulseColors.dark.textTertiary}
-                value={commentText}
-                onChangeText={setCommentText}
-                multiline
-                autoFocus
-              />
-            </View>
-            
-            <TouchableOpacity 
-              style={[styles.commentSendButton, !commentText.trim() && styles.commentSendButtonDisabled]}
-              onPress={handleSendComment}
-              disabled={!commentText.trim()}
-            >
-              <Send size={20} color={commentText.trim() ? '#FFFFFF' : PulseColors.dark.textTertiary} />
-              <Text style={[styles.commentSendButtonText, !commentText.trim() && styles.commentSendButtonTextDisabled]}>
-                Post Comment
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </KeyboardAvoidingView>
+        <CommentViewer 
+          postId={post.id} 
+          onClose={() => setShowCommentModal(false)} 
+        />
       </Modal>
 
       <View style={styles.bottomContent}>
