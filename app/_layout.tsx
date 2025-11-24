@@ -63,8 +63,9 @@ function RootLayoutNav() {
         router.replace('/onboarding/profile-setup');
       }
     } else if (!hasOnboarded) {
-      console.log('[RootLayoutNav] User has profile but not onboarded, redirecting to interests');
-      if (!inOnboardingGroup || segments[1] !== 'interests') {
+      console.log('[RootLayoutNav] User has profile but not onboarded');
+      if (!inOnboardingGroup) {
+        console.log('[RootLayoutNav] Not in onboarding group, redirecting to interests');
         router.replace('/onboarding/interests');
       }
     } else {
