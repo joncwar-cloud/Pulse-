@@ -125,7 +125,7 @@ export default function InterestsScreen() {
           <Text style={[
             styles.continueButtonText,
             selectedInterests.length < 3 && styles.continueButtonTextDisabled
-          ]}>Continue</Text>
+          ]}>Continue ({selectedInterests.length}/3)</Text>
           <ChevronRight size={24} color={selectedInterests.length < 3 ? "#666666" : "#FFFFFF"} />
         </TouchableOpacity>
       </View>
@@ -230,7 +230,6 @@ const styles = StyleSheet.create({
   },
   continueButtonDisabled: {
     backgroundColor: PulseColors.dark.surface,
-    opacity: 0.5,
   },
   continueButtonText: {
     fontSize: 17,
