@@ -27,10 +27,16 @@ export const authService = {
       throw new Error(authError.message || 'Sign up failed');
     }
     if (!authData.user) throw new Error('User creation failed');
-    if (!authData.session) throw new Error('Session creation failed');
 
-    console.log('[AuthService] User authenticated, session active');
-    console.log('[AuthService] Auth user ID:', authData.user.id);
+    console.log('[AuthService] User created:', authData.user.id);
+    console.log('[AuthService] Session:', authData.session ? 'Active' : 'Pending email confirmation');
+    
+    if (!authData.session) {
+      console.log('[AuthService] No session - email confirmation required');
+      return { user: authData.user, profile: null, requiresConfirmation: true };
+    }
+
+    console.log('[AuthService] Session active, creating profile');
     console.log('[AuthService] Session access token:', authData.session.access_token ? 'Present' : 'Missing');
     
     await supabase.auth.setSession({
@@ -74,7 +80,7 @@ export const authService = {
     }
     
     console.log('[AuthService] User created successfully');
-    return { user: authData.user, profile: user };
+    return { user: authData.user, profile: user, requiresConfirmation: false };
   },
 
   async signIn(email: string, password: string) {

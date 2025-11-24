@@ -79,13 +79,28 @@ export default function AuthScreen() {
           display_name: displayName,
           avatar_url: avatarUri || selectedPreset,
         };
-        await authService.signUp(email, password, profileData);
+        const result = await authService.signUp(email, password, profileData);
         console.log('[AuthScreen] Sign up successful');
-        Alert.alert(
-          'Success!',
-          'Account created successfully. Please check your email to verify your account.',
-          [{ text: 'OK', onPress: () => setMode('signin') }]
-        );
+        
+        if (result.requiresConfirmation) {
+          Alert.alert(
+            'Check Your Email!',
+            'We\'ve sent you a confirmation email. Please verify your account before signing in.',
+            [{ text: 'OK', onPress: () => setMode('signin') }]
+          );
+        } else {
+          Alert.alert(
+            'Success!',
+            'Account created successfully!',
+            [{ 
+              text: 'OK', 
+              onPress: () => {
+                refreshUser();
+                router.replace('/(tabs)');
+              }
+            }]
+          );
+        }
       }
     } catch (err: any) {
       const errorMessage = err?.message || 'Authentication failed. Please try again.';
