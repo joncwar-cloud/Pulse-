@@ -1,4 +1,4 @@
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { LogIn, Mail, Chrome, Facebook as FacebookIcon, Camera, Check } from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
@@ -39,7 +39,8 @@ const AVATAR_PRESETS = [
 
 export default function AuthScreen() {
   const router = useRouter();
-  const [mode, setMode] = useState<AuthMode>('signin');
+  const params = useLocalSearchParams<{ mode?: string }>();
+  const [mode, setMode] = useState<AuthMode>((params.mode as AuthMode) || 'signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');

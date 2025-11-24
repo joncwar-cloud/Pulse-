@@ -26,8 +26,13 @@ export default function WelcomeScreen() {
   }, [user, hasOnboarded, router]);
 
   const handleGetStarted = () => {
-    console.log('[WelcomeScreen] Redirecting to auth screen');
-    router.push('/auth');
+    console.log('[WelcomeScreen] Redirecting to auth screen (signup)');
+    router.push('/auth?mode=signup');
+  };
+
+  const handleSignIn = () => {
+    console.log('[WelcomeScreen] Redirecting to auth screen (signin)');
+    router.push('/auth?mode=signin');
   };
 
   return (
@@ -53,8 +58,15 @@ export default function WelcomeScreen() {
             style={styles.getStartedButton}
             onPress={handleGetStarted}
           >
-            <LogIn size={24} color="#FFFFFF" />
-            <Text style={styles.getStartedText}>Get Started</Text>
+            <Text style={styles.getStartedText}>Create Account</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.signInButton}
+            onPress={handleSignIn}
+          >
+            <LogIn size={20} color={PulseColors.dark.text} />
+            <Text style={styles.signInText}>Sign In</Text>
           </TouchableOpacity>
         </View>
 
@@ -122,12 +134,27 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     borderRadius: 16,
     backgroundColor: PulseColors.dark.accent,
-    gap: 12,
   },
   getStartedText: {
     fontSize: 18,
     fontWeight: '900' as const,
     color: '#FFFFFF',
+  },
+  signInButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 18,
+    borderRadius: 16,
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    borderColor: PulseColors.dark.border,
+    gap: 8,
+  },
+  signInText: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: PulseColors.dark.text,
   },
   disclaimer: {
     fontSize: 13,
