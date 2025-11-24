@@ -3,6 +3,7 @@ import { Heart, MessageCircle, Share2, CheckCircle, Crown, Bookmark, MapPin, Dol
 import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Pressable, Dimensions, Alert, Modal } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
 import { Post } from '@/types';
 import { PulseColors } from '@/constants/colors';
 import { useMonetization } from '@/contexts/MonetizationContext';
@@ -16,6 +17,7 @@ interface PostCardProps {
 }
 
 export default function PostCard({ post, onPress, isActive }: PostCardProps) {
+  const router = useRouter();
   const [liked, setLiked] = useState(false);
   const [saved, setSaved] = useState(false);
   const [likeCount, setLikeCount] = useState(post?.votes || 0);
@@ -77,6 +79,10 @@ export default function PostCard({ post, onPress, isActive }: PostCardProps) {
   const formattedLikeCount = useMemo(() => formatNumber(likeCount), [likeCount, formatNumber]);
   const formattedCommentCount = useMemo(() => formatNumber(post.comments), [post.comments, formatNumber]);
 
+  const handleProfilePress = useCallback(() => {
+    router.push(`/user/${post.user.username}`);
+  }, [router, post.user.username]);
+
 
 
   if (!post) {
@@ -100,9 +106,9 @@ export default function PostCard({ post, onPress, isActive }: PostCardProps) {
       />
 
       <View style={styles.rightActions}>
-        <View style={styles.actionContainer}>
+        <TouchableOpacity style={styles.actionContainer} onPress={handleProfilePress}>
           <Image source={{ uri: post.user.avatar }} style={styles.avatar} />
-        </View>
+        </TouchableOpacity>
 
         <TouchableOpacity style={styles.actionContainer} onPress={handleLike}>
           <Heart
@@ -182,7 +188,7 @@ export default function PostCard({ post, onPress, isActive }: PostCardProps) {
       </Modal>
 
       <View style={styles.bottomContent}>
-        <View style={styles.userSection}>
+        <TouchableOpacity style={styles.userSection} onPress={handleProfilePress}>
           <View style={styles.userInfo}>
             <View style={styles.nameRow}>
               <Text style={styles.displayName}>{post.user.displayName}</Text>
@@ -191,7 +197,7 @@ export default function PostCard({ post, onPress, isActive }: PostCardProps) {
             </View>
             <Text style={styles.username}>@{post.user.username}</Text>
           </View>
-        </View>
+        </TouchableOpacity>
 
         {post.title && <Text style={styles.title}>{post.title}</Text>}
         <Text style={styles.content} numberOfLines={3}>{post.content}</Text>
