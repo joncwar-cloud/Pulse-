@@ -121,36 +121,48 @@ export default function ProfileSetupScreen() {
         return;
       }
       
-      const existingProfile = await authService.getUserProfile(supabaseUser.id);
-      
-      if (existingProfile) {
-        console.log('[ProfileSetup] Profile exists, updating');
-        await authService.updateUserProfile(supabaseUser.id, {
-          username,
-          display_name: displayName,
-          avatar: finalAvatar,
-        });
-      } else {
-        console.log('[ProfileSetup] Creating new profile');
-        const { data: insertData, error: insertError } = await supabase
-          .from('users')
-          .insert([{
-            id: supabaseUser.id,
-            email: supabaseUser.email,
+      try {
+        const existingProfile = await authService.getUserProfile(supabaseUser.id);
+        
+        if (existingProfile) {
+          console.log('[ProfileSetup] Profile exists, updating');
+          await authService.updateUserProfile(supabaseUser.id, {
             username,
             display_name: displayName,
             avatar: finalAvatar,
-            created_at: new Date().toISOString(),
-          }])
-          .select()
-          .single();
+          });
+        } else {
+          console.log('[ProfileSetup] Creating new profile');
+          const { data: insertData, error: insertError } = await supabase
+            .from('users')
+            .insert([{
+              id: supabaseUser.id,
+              email: supabaseUser.email,
+              username,
+              display_name: displayName,
+              avatar: finalAvatar,
+              created_at: new Date().toISOString(),
+            }])
+            .select()
+            .single();
+          
+          if (insertError) {
+            console.error('[ProfileSetup] Insert error:', insertError);
+            throw insertError;
+          }
+          
+          console.log('[ProfileSetup] Profile created:', insertData);
+        }
+      } catch (profileError: any) {
+        console.error('[ProfileSetup] Error checking/creating profile:', profileError);
         
-        if (insertError) {
-          console.error('[ProfileSetup] Insert error:', insertError);
-          throw insertError;
+        if (profileError?.code === '23505') {
+          Alert.alert('Username Taken', 'This username is already in use. Please choose a different one.');
+          setLoading(false);
+          return;
         }
         
-        console.log('[ProfileSetup] Profile created:', insertData);
+        throw profileError;
       }
 
       console.log('[ProfileSetup] Profile saved, moving to interests');
