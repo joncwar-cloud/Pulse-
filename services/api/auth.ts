@@ -36,23 +36,39 @@ export const authService = {
     console.log('[AuthService] Session:', authData.session ? 'Active' : 'Pending email confirmation');
     
     if (!authData.session) {
-      console.log('[AuthService] No session - email confirmation may be required');
-    } else {
-      console.log('[AuthService] Session active, creating profile');
-      console.log('[AuthService] Session access token:', authData.session.access_token ? 'Present' : 'Missing');
-      
-      await supabase.auth.setSession({
-        access_token: authData.session.access_token,
-        refresh_token: authData.session.refresh_token,
-      });
+      console.log('[AuthService] No session - email confirmation required');
+      return { 
+        user: authData.user, 
+        profile: null,
+        requiresEmailConfirmation: true 
+      };
     }
     
-    await new Promise(resolve => setTimeout(resolve, 100));
+    console.log('[AuthService] Session active, setting session');
+    console.log('[AuthService] Session access token:', authData.session.access_token ? 'Present' : 'Missing');
+    
+    const { error: sessionError } = await supabase.auth.setSession({
+      access_token: authData.session.access_token,
+      refresh_token: authData.session.refresh_token,
+    });
+    
+    if (sessionError) {
+      console.error('[AuthService] Session set error:', JSON.stringify(sessionError, null, 2));
+      throw new Error('Failed to establish session');
+    }
+    
+    console.log('[AuthService] Session set successfully');
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
+    const { data: { user: currentAuthUser } } = await supabase.auth.getUser();
+    console.log('[AuthService] Current auth user after session:', currentAuthUser?.id);
+    
+    if (!currentAuthUser || currentAuthUser.id !== authData.user.id) {
+      console.error('[AuthService] Session verification failed');
+      throw new Error('Session verification failed');
+    }
     
     console.log('[AuthService] Creating user profile for user:', authData.user.id);
-    
-    const { data: currentUser } = await supabase.auth.getUser();
-    console.log('[AuthService] Current auth user after session set:', currentUser?.user?.id);
     
     const { data: user, error: userError } = await supabase
       .from('users')
