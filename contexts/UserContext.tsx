@@ -157,7 +157,13 @@ export const [UserProvider, useUser] = createContextHook(() => {
   const saveUserMutation = useMutation({
     mutationFn: async (updates: Partial<UserProfile>) => {
       const userId = user?.id || supabaseUser?.id;
-      if (!userId) throw new Error('No user to update');
+      if (!userId) {
+        console.error('[UserContext] No user ID available for update');
+        console.error('[UserContext] user?.id:', user?.id);
+        console.error('[UserContext] supabaseUser?.id:', supabaseUser?.id);
+        throw new Error('No user to update');
+      }
+      console.log('[UserContext] Updating profile for user:', userId);
       const updated = await authService.updateUserProfile(userId, {
         username: updates.username,
         display_name: updates.displayName,
@@ -272,9 +278,16 @@ export const [UserProvider, useUser] = createContextHook(() => {
 
   const completeOnboarding = async (interests: string[], dateOfBirth: Date) => {
     console.log('[UserContext] Completing onboarding with interests:', interests);
+    console.log('[UserContext] Current user state - user:', !!user, 'supabaseUser:', !!supabaseUser);
     const age = new Date().getFullYear() - dateOfBirth.getFullYear();
     const shouldActivateChildMode = age < 18;
     console.log('[UserContext] User age:', age, 'Child mode:', shouldActivateChildMode);
+
+    const userId = user?.id || supabaseUser?.id;
+    if (!userId) {
+      console.error('[UserContext] Cannot complete onboarding without user ID');
+      throw new Error('No user session found');
+    }
 
     if (user || supabaseUser) {
       await updateProfile({

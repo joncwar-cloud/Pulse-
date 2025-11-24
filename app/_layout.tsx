@@ -51,18 +51,20 @@ function RootLayoutNav() {
     console.log('[RootLayoutNav] Has onboarded:', hasOnboarded);
 
     if (!supabaseUser) {
-      console.log('[RootLayoutNav] No user, redirecting to auth');
+      console.log('[RootLayoutNav] No supabase user, redirecting to auth');
       if (!inAuthGroup) {
         router.replace('/auth');
       }
     } else if (!user) {
-      console.log('[RootLayoutNav] User exists but no profile, redirecting to profile setup');
-      if (!inOnboardingGroup) {
+      console.log('[RootLayoutNav] Supabase user exists but no profile yet');
+      console.log('[RootLayoutNav] Supabase user ID:', supabaseUser.id);
+      console.log('[RootLayoutNav] Redirecting to profile setup');
+      if (!inOnboardingGroup || segments[1] !== 'profile-setup') {
         router.replace('/onboarding/profile-setup');
       }
     } else if (!hasOnboarded) {
       console.log('[RootLayoutNav] User has profile but not onboarded, redirecting to interests');
-      if (!inOnboardingGroup) {
+      if (!inOnboardingGroup || segments[1] !== 'interests') {
         router.replace('/onboarding/interests');
       }
     } else {
