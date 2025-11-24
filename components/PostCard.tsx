@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { Heart, MessageCircle, Share2, CheckCircle, Crown, Bookmark, MapPin, DollarSign, Gift } from 'lucide-react-native';
 import React, { useState, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Pressable, Dimensions, Alert, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Pressable, Dimensions, Alert, Modal, Share, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Post } from '@/types';
@@ -83,6 +83,39 @@ export default function PostCard({ post, onPress, isActive }: PostCardProps) {
     router.push(`/user/${post.user.username}`);
   }, [router, post.user.username]);
 
+  const handleShare = useCallback(async () => {
+    try {
+      const shareContent = {
+        message: `${post.title ? post.title + '\n' : ''}${post.content}\n\nCheck out this post by @${post.user.username}!`,
+        url: `https://pulse.app/post/${post.id}`,
+      };
+
+      if (Platform.OS === 'web') {
+        if (navigator.share) {
+          await navigator.share({
+            title: post.title || 'Pulse Post',
+            text: shareContent.message,
+            url: shareContent.url,
+          });
+        } else {
+          await navigator.clipboard.writeText(`${shareContent.message}\n${shareContent.url}`);
+          Alert.alert('Link Copied', 'The post link has been copied to your clipboard!');
+        }
+      } else {
+        const result = await Share.share({
+          message: `${shareContent.message}\n${shareContent.url}`,
+        });
+        
+        if (result.action === Share.sharedAction) {
+          console.log('Post shared successfully');
+        }
+      }
+    } catch (error) {
+      console.error('Error sharing post:', error);
+      Alert.alert('Error', 'Failed to share the post. Please try again.');
+    }
+  }, [post]);
+
 
 
   if (!post) {
@@ -132,7 +165,7 @@ export default function PostCard({ post, onPress, isActive }: PostCardProps) {
           />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.actionContainer}>
+        <TouchableOpacity style={styles.actionContainer} onPress={handleShare}>
           <Share2 size={32} color={PulseColors.dark.text} />
         </TouchableOpacity>
 

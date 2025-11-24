@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
-import { ArrowLeft, Heart, MessageCircle, Share2, Bookmark, Play, Volume2, VolumeX } from 'lucide-react-native';
+import { ArrowLeft, Heart, MessageCircle, Share2, Bookmark, Play, Volume2, VolumeX, Send } from 'lucide-react-native';
 import React, { useState, useRef, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, Pressable } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, Pressable, TextInput, KeyboardAvoidingView, Platform, Share as RNShare, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
@@ -9,7 +9,7 @@ import { Image } from 'expo-image';
 import { PulseColors } from '@/constants/colors';
 import { mockPosts } from '@/mocks/posts';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function PostDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -19,6 +19,8 @@ export default function PostDetailScreen() {
   const [saved, setSaved] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [commentText, setCommentText] = useState('');
+  const [comments, setComments] = useState<{ id: string; text: string; user: string; timestamp: Date }[]>([]);
 
   const post = useMemo(() => mockPosts.find(p => p.id === id), [id]);
 
@@ -57,6 +59,54 @@ export default function PostDetailScreen() {
     if (status.isLoaded) {
       setIsPlaying(status.isPlaying);
     }
+  };
+
+  const handleShare = async () => {
+    try {
+      const shareContent = {
+        message: `${post.title ? post.title + '\n' : ''}${post.content}\n\nCheck out this post by @${post.user.username}!`,
+        url: `https://pulse.app/post/${post.id}`,
+      };
+
+      if (Platform.OS === 'web') {
+        if (navigator.share) {
+          await navigator.share({
+            title: post.title || 'Pulse Post',
+            text: shareContent.message,
+            url: shareContent.url,
+          });
+        } else {
+          await navigator.clipboard.writeText(`${shareContent.message}\n${shareContent.url}`);
+          Alert.alert('Link Copied', 'The post link has been copied to your clipboard!');
+        }
+      } else {
+        const result = await RNShare.share({
+          message: `${shareContent.message}\n${shareContent.url}`,
+        });
+        
+        if (result.action === RNShare.sharedAction) {
+          console.log('Post shared successfully');
+        }
+      }
+    } catch (error) {
+      console.error('Error sharing post:', error);
+      Alert.alert('Error', 'Failed to share the post. Please try again.');
+    }
+  };
+
+  const handleAddComment = () => {
+    if (!commentText.trim()) return;
+    
+    const newComment = {
+      id: `comment_${Date.now()}`,
+      text: commentText,
+      user: 'You',
+      timestamp: new Date(),
+    };
+    
+    setComments([newComment, ...comments]);
+    setCommentText('');
+    Alert.alert('Comment Posted', 'Your comment has been added successfully!');
   };
 
   return (
@@ -151,7 +201,7 @@ export default function PostDetailScreen() {
             />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
             <Share2 size={28} color={PulseColors.dark.text} />
             <Text style={styles.actionCount}>{post.shares}</Text>
           </TouchableOpacity>
@@ -210,14 +260,58 @@ export default function PostDetailScreen() {
         </View>
 
         <View style={styles.commentsSection}>
-          <Text style={styles.commentsTitle}>Comments</Text>
-          <View style={styles.emptyComments}>
-            <MessageCircle size={48} color={PulseColors.dark.textSecondary} />
-            <Text style={styles.emptyCommentsText}>No comments yet</Text>
-            <Text style={styles.emptyCommentsSubtext}>Be the first to comment!</Text>
-          </View>
+          <Text style={styles.commentsTitle}>Comments ({comments.length})</Text>
+          
+          {comments.length > 0 ? (
+            <View style={styles.commentsList}>
+              {comments.map((comment) => (
+                <View key={comment.id} style={styles.commentCard}>
+                  <View style={styles.commentHeader}>
+                    <View style={styles.commentAvatar}>
+                      <Text style={styles.commentAvatarText}>{comment.user[0]}</Text>
+                    </View>
+                    <View style={styles.commentContent}>
+                      <Text style={styles.commentUser}>{comment.user}</Text>
+                      <Text style={styles.commentText}>{comment.text}</Text>
+                      <Text style={styles.commentTime}>
+                        {comment.timestamp.toLocaleDateString()} at {comment.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.emptyComments}>
+              <MessageCircle size={48} color={PulseColors.dark.textSecondary} />
+              <Text style={styles.emptyCommentsText}>No comments yet</Text>
+              <Text style={styles.emptyCommentsSubtext}>Be the first to comment!</Text>
+            </View>
+          )}
         </View>
       </ScrollView>
+
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.commentInputContainer}
+      >
+        <TextInput
+          style={styles.commentInput}
+          placeholder="Add a comment..."
+          placeholderTextColor={PulseColors.dark.textTertiary}
+          value={commentText}
+          onChangeText={setCommentText}
+          multiline
+          maxLength={500}
+        />
+        <TouchableOpacity 
+          style={[styles.sendButton, !commentText.trim() && styles.sendButtonDisabled]} 
+          onPress={handleAddComment}
+          disabled={!commentText.trim()}
+        >
+          <Send size={20} color={commentText.trim() ? PulseColors.dark.accent : PulseColors.dark.textTertiary} />
+        </TouchableOpacity>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -472,5 +566,86 @@ const styles = StyleSheet.create({
   emptyCommentsSubtext: {
     fontSize: 14,
     color: PulseColors.dark.textTertiary,
+  },
+  commentsList: {
+    gap: 16,
+  },
+  commentCard: {
+    backgroundColor: PulseColors.dark.surface,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: PulseColors.dark.border,
+  },
+  commentHeader: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  commentAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: PulseColors.dark.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  commentAvatarText: {
+    fontSize: 18,
+    fontWeight: '700' as const,
+    color: '#FFFFFF',
+  },
+  commentContent: {
+    flex: 1,
+    gap: 4,
+  },
+  commentUser: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: PulseColors.dark.text,
+  },
+  commentText: {
+    fontSize: 15,
+    lineHeight: 21,
+    color: PulseColors.dark.text,
+  },
+  commentTime: {
+    fontSize: 12,
+    color: PulseColors.dark.textTertiary,
+    marginTop: 4,
+  },
+  commentInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: PulseColors.dark.surface,
+    borderTopWidth: 1,
+    borderTopColor: PulseColors.dark.border,
+    gap: 12,
+  },
+  commentInput: {
+    flex: 1,
+    backgroundColor: PulseColors.dark.background,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    fontSize: 15,
+    color: PulseColors.dark.text,
+    maxHeight: 100,
+    borderWidth: 1,
+    borderColor: PulseColors.dark.border,
+  },
+  sendButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: PulseColors.dark.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: PulseColors.dark.accent,
+  },
+  sendButtonDisabled: {
+    borderColor: PulseColors.dark.border,
   },
 });

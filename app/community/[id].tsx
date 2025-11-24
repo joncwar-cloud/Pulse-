@@ -1,7 +1,9 @@
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
-import { ArrowLeft, Users, TrendingUp, MessageCircle, Shield, Sparkles, ChevronRight } from 'lucide-react-native';
+import { ArrowLeft, Users, TrendingUp, MessageCircle, Shield, Sparkles, Zap, Loader } from 'lucide-react-native';
 import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, Image, Alert, ActivityIndicator } from 'react-native';
+import { useMutation } from '@tanstack/react-query';
+import { generateText } from '@rork-ai/toolkit-sdk';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { PulseColors } from '@/constants/colors';
@@ -35,6 +37,7 @@ export default function CommunityDetailScreen() {
   const router = useRouter();
   const { communities, joinCommunity, leaveCommunity } = useCommunities();
   const [activeTab, setActiveTab] = useState<TabType>('posts');
+  const [aiGeneratedPosts, setAiGeneratedPosts] = useState<string[]>([]);
 
   const community = useMemo(() => 
     communities.find(c => c.id === id),
@@ -68,6 +71,52 @@ export default function CommunityDetailScreen() {
   const handlePostPress = (post: Post) => {
     router.push(`/post/${post.id}`);
   };
+
+  const generateAIPostMutation = useMutation({
+    mutationFn: async () => {
+      console.log('[AI Post Generation] Starting for community:', community?.name);
+      
+      const topics = community?.pointsOfInterest && community.pointsOfInterest.length > 0
+        ? community.pointsOfInterest.join(', ')
+        : community?.category || community?.name || 'general topics';
+
+      const prompt = `You are an AI content creator for the "${community?.name}" community. 
+
+Community Description: ${community?.description}
+Topics: ${topics}
+
+Create an engaging, informative post about recent news or interesting information related to these topics. The post should:
+- Be 2-3 paragraphs long
+- Include real information (search the web if needed for recent news)
+- Be engaging and conversational
+- Be relevant to the community's interests
+- Include interesting facts or insights
+
+Write the post content only, no title needed:`;
+
+      console.log('[AI Post Generation] Generating with prompt:', prompt.substring(0, 100) + '...');
+      const content = await generateText(prompt);
+      console.log('[AI Post Generation] Success! Generated content length:', content.length);
+      
+      return content;
+    },
+    onSuccess: (content) => {
+      console.log('[AI Post Generation] Adding to posts');
+      setAiGeneratedPosts(prev => [content, ...prev]);
+      Alert.alert(
+        '🤖 AI Post Created',
+        'The AI moderator has created a new post for this community!',
+        [{ text: 'View Posts', onPress: () => setActiveTab('posts') }]
+      );
+    },
+    onError: (error) => {
+      console.error('[AI Post Generation] Error:', error);
+      Alert.alert(
+        'Generation Failed',
+        'Failed to generate AI content. Please check your connection and try again.'
+      );
+    },
+  });
 
   if (!community) {
     return (
@@ -126,7 +175,8 @@ export default function CommunityDetailScreen() {
           {aiModerator && (
             <TouchableOpacity 
               style={[styles.moderatorCard, { borderColor: aiModerator.color }]}
-              onPress={() => {}}
+              onPress={() => generateAIPostMutation.mutate()}
+              disabled={generateAIPostMutation.isPending}
             >
               <View style={[styles.moderatorAvatar, { backgroundColor: aiModerator.color }]}>
                 <Text style={styles.moderatorAvatarText}>{aiModerator.avatar}</Text>
@@ -140,8 +190,21 @@ export default function CommunityDetailScreen() {
                 <Text style={styles.moderatorName}>{aiModerator.name}</Text>
                 <Text style={styles.moderatorPersonality}>{aiModerator.personality}</Text>
               </View>
-              <ChevronRight size={20} color={PulseColors.dark.textSecondary} />
+              {generateAIPostMutation.isPending ? (
+                <ActivityIndicator size="small" color={aiModerator.color} />
+              ) : (
+                <Zap size={20} color={aiModerator.color} />
+              )}
             </TouchableOpacity>
+          )}
+
+          {aiModerator && generateAIPostMutation.isPending && (
+            <View style={styles.generatingBanner}>
+              <Loader size={16} color={PulseColors.dark.accent} />
+              <Text style={styles.generatingText}>
+                {aiModerator.name} is generating a post...
+              </Text>
+            </View>
           )}
 
           <TouchableOpacity
@@ -176,6 +239,40 @@ export default function CommunityDetailScreen() {
 
         {activeTab === 'posts' && (
           <View style={styles.gridContainer}>
+            {aiGeneratedPosts.length > 0 && (
+              <View style={styles.aiPostsSection}>
+                <View style={styles.aiPostsHeader}>
+                  <Sparkles size={20} color={PulseColors.dark.warning} />
+                  <Text style={styles.aiPostsTitle}>AI Generated Content</Text>
+                </View>
+                {aiGeneratedPosts.map((content, index) => (
+                  <View key={`ai-post-${index}`} style={styles.aiPostCard}>
+                    <View style={styles.aiPostHeader}>
+                      <View style={[styles.aiPostAvatar, { backgroundColor: aiModerator?.color }]}>
+                        <Text style={styles.aiPostAvatarText}>{aiModerator?.avatar}</Text>
+                      </View>
+                      <View style={styles.aiPostInfo}>
+                        <Text style={styles.aiPostAuthor}>{aiModerator?.name}</Text>
+                        <Text style={styles.aiPostTimestamp}>Just now</Text>
+                      </View>
+                      <View style={styles.aiPostBadge}>
+                        <Sparkles size={12} color={PulseColors.dark.warning} />
+                        <Text style={styles.aiPostBadgeText}>AI</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.aiPostContent}>{content}</Text>
+                    <View style={styles.aiPostActions}>
+                      <View style={styles.aiPostAction}>
+                        <Text style={styles.aiPostActionText}>❤️ {Math.floor(Math.random() * 100 + 50)}</Text>
+                      </View>
+                      <View style={styles.aiPostAction}>
+                        <Text style={styles.aiPostActionText}>💬 {Math.floor(Math.random() * 20 + 5)}</Text>
+                      </View>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
             {communityPosts.length > 0 ? (
               <View style={styles.grid}>
                 {communityPosts.map((post) => (
@@ -579,5 +676,109 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600' as const,
     color: PulseColors.dark.text,
+  },
+  generatingBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(255, 0, 87, 0.1)',
+    borderRadius: 12,
+    marginTop: 12,
+    width: '100%',
+  },
+  generatingText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: PulseColors.dark.text,
+  },
+  aiPostsSection: {
+    padding: 20,
+    gap: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: PulseColors.dark.border,
+  },
+  aiPostsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  aiPostsTitle: {
+    fontSize: 18,
+    fontWeight: '800' as const,
+    color: PulseColors.dark.text,
+  },
+  aiPostCard: {
+    backgroundColor: PulseColors.dark.surface,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 2,
+    borderColor: PulseColors.dark.accent,
+    gap: 12,
+  },
+  aiPostHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  aiPostAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  aiPostAvatarText: {
+    fontSize: 24,
+  },
+  aiPostInfo: {
+    flex: 1,
+  },
+  aiPostAuthor: {
+    fontSize: 16,
+    fontWeight: '800' as const,
+    color: PulseColors.dark.text,
+    marginBottom: 2,
+  },
+  aiPostTimestamp: {
+    fontSize: 12,
+    color: PulseColors.dark.textSecondary,
+  },
+  aiPostBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: 'rgba(255, 193, 7, 0.2)',
+    borderRadius: 8,
+  },
+  aiPostBadgeText: {
+    fontSize: 10,
+    fontWeight: '800' as const,
+    color: PulseColors.dark.warning,
+  },
+  aiPostContent: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: PulseColors.dark.text,
+  },
+  aiPostActions: {
+    flexDirection: 'row',
+    gap: 16,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: PulseColors.dark.border,
+  },
+  aiPostAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  aiPostActionText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: PulseColors.dark.textSecondary,
   },
 });
