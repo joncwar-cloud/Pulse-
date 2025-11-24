@@ -100,13 +100,27 @@ export default function CommunityDetailScreen() {
             });
           } catch (shareError: any) {
             if (shareError.name !== 'AbortError') {
-              await navigator.clipboard.writeText(`${shareContent.message}\n${shareContent.url}`);
-              Alert.alert('Link Copied', 'The post link has been copied to your clipboard!');
+              try {
+                await navigator.clipboard.writeText(`${shareContent.message}\n${shareContent.url}`);
+                Alert.alert('Link Copied', 'The post link has been copied to your clipboard!');
+              } catch (clipboardError) {
+                console.log('[Community] Clipboard not available, showing link instead');
+                Alert.alert('Share Link', shareContent.url, [
+                  { text: 'OK', style: 'default' }
+                ]);
+              }
             }
           }
         } else {
-          await navigator.clipboard.writeText(`${shareContent.message}\n${shareContent.url}`);
-          Alert.alert('Link Copied', 'The post link has been copied to your clipboard!');
+          try {
+            await navigator.clipboard.writeText(`${shareContent.message}\n${shareContent.url}`);
+            Alert.alert('Link Copied', 'The post link has been copied to your clipboard!');
+          } catch (clipboardError) {
+            console.log('[Community] Clipboard not available, showing link instead');
+            Alert.alert('Share Link', shareContent.url, [
+              { text: 'OK', style: 'default' }
+            ]);
+          }
         }
       } else {
         await RNShare.share({

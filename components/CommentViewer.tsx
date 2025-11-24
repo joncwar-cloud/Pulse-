@@ -158,12 +158,15 @@ export default function CommentViewer({ postId, onClose }: CommentViewerProps) {
         style={styles.keyboardView}
       >
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>
-            Comments {comments.length > 0 && `(${comments.length})`}
-          </Text>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <X size={24} color={PulseColors.dark.text} />
-          </TouchableOpacity>
+          <View style={styles.headerDragHandle} />
+          <View style={styles.headerContent}>
+            <Text style={styles.headerTitle}>
+              Comments {comments.length > 0 && `(${comments.length})`}
+            </Text>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <X size={24} color={PulseColors.dark.text} strokeWidth={2.5} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         <FlatList
@@ -227,21 +230,38 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
+    paddingTop: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: PulseColors.dark.border,
+  },
+  headerDragHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: PulseColors.dark.border,
+    alignSelf: 'center',
+    marginBottom: 12,
+  },
+  headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: PulseColors.dark.border,
+    paddingBottom: 16,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '800' as const,
     color: PulseColors.dark.text,
+    flex: 1,
   },
   closeButton: {
-    padding: 4,
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 18,
+    backgroundColor: PulseColors.dark.background,
   },
   commentsList: {
     flex: 1,
