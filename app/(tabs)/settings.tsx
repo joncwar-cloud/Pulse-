@@ -546,10 +546,12 @@ export default function ProfileScreen() {
           )}
 
           <View style={styles.legalLinks}>
-            <TouchableOpacity onPress={() => console.log('[Settings] Privacy Policy')}>              <Text style={styles.legalLinkText}>Privacy Policy</Text>
+            <TouchableOpacity onPress={() => console.log('[Settings] Privacy Policy')}>
+              <Text style={styles.legalLinkText}>Privacy Policy</Text>
             </TouchableOpacity>
             <Text style={styles.legalSeparator}>•</Text>
-            <TouchableOpacity onPress={() => console.log('[Settings] Terms of Service')}>              <Text style={styles.legalLinkText}>Terms of Service</Text>
+            <TouchableOpacity onPress={() => console.log('[Settings] Terms of Service')}>
+              <Text style={styles.legalLinkText}>Terms of Service</Text>
             </TouchableOpacity>
           </View>
         </View>
