@@ -1,4 +1,4 @@
-import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
+import { Stack, useLocalSearchParams } from 'expo-router';
 import { LogIn, Mail, Chrome, Facebook as FacebookIcon, Camera, Check } from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
@@ -38,7 +38,6 @@ const AVATAR_PRESETS = [
 ];
 
 export default function AuthScreen() {
-  const router = useRouter();
   const params = useLocalSearchParams<{ mode?: string }>();
   const [mode, setMode] = useState<AuthMode>((params.mode as AuthMode) || 'signin');
   const [email, setEmail] = useState('');
@@ -69,24 +68,7 @@ export default function AuthScreen() {
     try {
       if (mode === 'signin') {
         await authService.signIn(email, password);
-        console.log('[AuthScreen] Sign in successful');
-        
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        const session = await authService.getSession();
-        if (session?.user) {
-          const profile = await authService.getUserProfile(session.user.id);
-          console.log('[AuthScreen] Profile check:', profile ? 'Found' : 'Not found');
-          
-          if (profile) {
-            console.log('[AuthScreen] Profile exists, redirecting to tabs');
-            router.replace('/(tabs)');
-          } else {
-            console.log('[AuthScreen] No profile, redirecting to onboarding');
-            router.replace('/onboarding/profile-setup');
-          }
-        }
-        return;
+        console.log('[AuthScreen] Sign in successful, routing handled by _layout');
       } else {
         const profileData = {
           username,
@@ -113,10 +95,7 @@ export default function AuthScreen() {
           return;
         }
         
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        console.log('[AuthScreen] Account created, redirecting to onboarding');
-        router.replace('/onboarding/profile-setup');
+        console.log('[AuthScreen] Account created, routing handled by _layout');
       }
     } catch (err: any) {
       const errorMessage = err?.message || 'Authentication failed. Please try again.';
@@ -134,20 +113,7 @@ export default function AuthScreen() {
 
     try {
       await authService.signInWithGoogle();
-      
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const session = await authService.getSession();
-      if (session?.user) {
-        const profile = await authService.getUserProfile(session.user.id);
-        if (profile) {
-          console.log('[AuthScreen] Google auth complete, redirecting to tabs');
-          router.replace('/(tabs)');
-        } else {
-          console.log('[AuthScreen] Google auth complete, needs profile setup');
-          router.replace('/onboarding/profile-setup');
-        }
-      }
+      console.log('[AuthScreen] Google auth complete, routing handled by _layout');
     } catch (err: any) {
       const errorMessage = err?.message || 'Google sign in failed. Please try again.';
       console.error('[AuthScreen] Google auth error:', errorMessage, err);
@@ -164,20 +130,7 @@ export default function AuthScreen() {
 
     try {
       await authService.signInWithFacebook();
-      
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const session = await authService.getSession();
-      if (session?.user) {
-        const profile = await authService.getUserProfile(session.user.id);
-        if (profile) {
-          console.log('[AuthScreen] Facebook auth complete, redirecting to tabs');
-          router.replace('/(tabs)');
-        } else {
-          console.log('[AuthScreen] Facebook auth complete, needs profile setup');
-          router.replace('/onboarding/profile-setup');
-        }
-      }
+      console.log('[AuthScreen] Facebook auth complete, routing handled by _layout');
     } catch (err: any) {
       const errorMessage = err?.message || 'Facebook sign in failed. Please try again.';
       console.error('[AuthScreen] Facebook auth error:', errorMessage, err);

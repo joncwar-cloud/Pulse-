@@ -1,11 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Stack } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import React, { useEffect, useState } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ContentFilterProvider } from '@/contexts/ContentFilterContext';
-import { UserProvider } from '@/contexts/UserContext';
+import { UserProvider, useUser } from '@/contexts/UserContext';
 import { LocationFilterProvider } from '@/contexts/LocationFilterContext';
 import { MonetizationProvider } from '@/contexts/MonetizationContext';
 import { CommunityProvider } from '@/contexts/CommunityContext';
@@ -31,6 +31,48 @@ const queryClient = new QueryClient({
 });
 
 function RootLayoutNav() {
+  const segments = useSegments();
+  const router = useRouter();
+  const { user, supabaseUser, isLoading, hasOnboarded } = useUser();
+
+  useEffect(() => {
+    if (isLoading) {
+      console.log('[RootLayoutNav] Still loading auth state');
+      return;
+    }
+
+    const inAuthGroup = segments[0] === 'auth';
+    const inOnboardingGroup = segments[0] === 'onboarding';
+    const inTabsGroup = segments[0] === '(tabs)';
+
+    console.log('[RootLayoutNav] Current segment:', segments[0]);
+    console.log('[RootLayoutNav] Has supabase user:', !!supabaseUser);
+    console.log('[RootLayoutNav] Has profile:', !!user);
+    console.log('[RootLayoutNav] Has onboarded:', hasOnboarded);
+
+    if (!supabaseUser) {
+      console.log('[RootLayoutNav] No user, redirecting to auth');
+      if (!inAuthGroup) {
+        router.replace('/auth');
+      }
+    } else if (!user) {
+      console.log('[RootLayoutNav] User exists but no profile, redirecting to profile setup');
+      if (!inOnboardingGroup) {
+        router.replace('/onboarding/profile-setup');
+      }
+    } else if (!hasOnboarded) {
+      console.log('[RootLayoutNav] User has profile but not onboarded, redirecting to interests');
+      if (!inOnboardingGroup) {
+        router.replace('/onboarding/interests');
+      }
+    } else {
+      console.log('[RootLayoutNav] User is authenticated and onboarded, redirecting to tabs');
+      if (!inTabsGroup) {
+        router.replace('/(tabs)');
+      }
+    }
+  }, [supabaseUser, user, hasOnboarded, isLoading, segments, router]);
+
   return (
     <Stack screenOptions={{ headerBackTitle: 'Back' }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -38,8 +80,8 @@ function RootLayoutNav() {
         name="auth" 
         options={{ 
           headerShown: false, 
-          presentation: 'modal',
-          animation: 'slide_from_bottom',
+          presentation: 'card',
+          animation: 'fade',
           gestureEnabled: false,
         }} 
       />
@@ -47,7 +89,7 @@ function RootLayoutNav() {
         name="onboarding" 
         options={{ 
           headerShown: false, 
-          presentation: 'fullScreenModal',
+          presentation: 'card',
           animation: 'fade',
           gestureEnabled: false,
         }} 

@@ -1,10 +1,14 @@
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ChevronRight, Camera, User, Check } from 'lucide-react-native';
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
 import { PulseColors } from '@/constants/colors';
+import { useUser } from '@/contexts/UserContext';
+import { authService } from '@/services/api/auth';
+import { supabase } from '@/services/supabase';
 
 const AVATAR_PRESETS = [
   'https://i.pravatar.cc/150?img=1',
@@ -24,10 +28,13 @@ const AVATAR_PRESETS = [
 export default function ProfileSetupScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { supabaseUser } = useUser();
   const [username, setUsername] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [selectedAvatar, setSelectedAvatar] = useState<string>(AVATAR_PRESETS[0]);
   const [usernameError, setUsernameError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const validateUsername = (text: string) => {
     const sanitized = text.toLowerCase().replace(/[^a-z0-9_]/g, '');
@@ -42,7 +49,7 @@ export default function ProfileSetupScreen() {
     }
   };
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (!username || username.length < 3) {
       Alert.alert('Username Required', 'Please enter a username with at least 3 characters');
       return;
@@ -53,16 +60,117 @@ export default function ProfileSetupScreen() {
       return;
     }
 
-    console.log('[ProfileSetup] Profile setup complete:', { username, displayName, selectedAvatar });
-    router.push({
-      pathname: '/onboarding/interests',
-      params: { 
-        ...params,
-        username,
-        displayName,
-        avatar: selectedAvatar,
-      },
-    });
+    if (!supabaseUser?.id) {
+      Alert.alert('Error', 'No user session found. Please sign in again.');
+      return;
+    }
+
+    setLoading(true);
+    console.log('[ProfileSetup] Creating profile for user:', supabaseUser.id);
+
+    try {
+      const finalAvatar = avatarUri || selectedAvatar;
+      
+      const { data: existingProfile } = await authService.getUserProfile(supabaseUser.id);
+      
+      if (existingProfile) {
+        await authService.updateUserProfile(supabaseUser.id, {
+          username,
+          display_name: displayName,
+          avatar_url: finalAvatar,
+        });
+} else {
+        const { error } = await supabase
+          .from('users')
+          .insert([{
+            id: supabaseUser.id,
+            email: supabaseUser.email,
+            username,
+            display_name: displayName,
+            avatar: finalAvatar,
+            created_at: new Date().toISOString(),
+          }]);
+        
+        if (error) throw error;
+      }
+
+      console.log('[ProfileSetup] Profile saved, moving to interests');
+      router.push({
+        pathname: '/onboarding/interests',
+        params: { 
+          ...params,
+          username,
+          displayName,
+          avatar: finalAvatar,
+        },
+      });
+    } catch (error: any) {
+      console.error('[ProfileSetup] Error saving profile:', error);
+      Alert.alert('Error', error?.message || 'Failed to save profile. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const pickImage = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Please allow access to your photo library.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'] as any,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        setAvatarUri(result.assets[0].uri);
+      }
+    } catch (err) {
+      console.error('[ProfileSetup] Image picker error:', err);
+      Alert.alert('Error', 'Failed to pick image.');
+    }
+  };
+
+  const takePhoto = async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Please allow access to your camera.');
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        setAvatarUri(result.assets[0].uri);
+      }
+    } catch (err) {
+      console.error('[ProfileSetup] Camera error:', err);
+      Alert.alert('Error', 'Failed to take photo.');
+    }
+  };
+
+  const showImageOptions = () => {
+    Alert.alert(
+      'Profile Photo',
+      'Choose how to set your profile photo',
+      [
+        { text: 'Take Photo', onPress: takePhoto },
+        { text: 'Choose from Library', onPress: pickImage },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
   };
 
   const isValid = username.length >= 3 && displayName.trim().length > 0 && !usernameError;
@@ -89,13 +197,14 @@ export default function ProfileSetupScreen() {
           <View style={styles.avatarSection}>
             <View style={styles.selectedAvatarContainer}>
               <Image 
-                source={{ uri: selectedAvatar }} 
+                source={{ uri: avatarUri || selectedAvatar }} 
                 style={styles.selectedAvatar}
                 contentFit="cover"
               />
               <TouchableOpacity 
                 style={styles.cameraButton}
-                onPress={() => Alert.alert('Photo Upload', 'Photo upload from camera/gallery requires backend integration')}
+                onPress={showImageOptions}
+                disabled={loading}
               >
                 <Camera size={20} color={PulseColors.dark.background} />
               </TouchableOpacity>
@@ -110,18 +219,22 @@ export default function ProfileSetupScreen() {
               {AVATAR_PRESETS.map((avatar, index) => (
                 <TouchableOpacity
                   key={index}
-                  style={[
+style={[
                     styles.avatarPreset,
-                    selectedAvatar === avatar && styles.avatarPresetSelected,
+                    !avatarUri && selectedAvatar === avatar && styles.avatarPresetSelected,
                   ]}
-                  onPress={() => setSelectedAvatar(avatar)}
+                  onPress={() => {
+                    setSelectedAvatar(avatar);
+                    setAvatarUri(null);
+                  }}
+                  disabled={loading}
                 >
                   <Image 
                     source={{ uri: avatar }} 
                     style={styles.avatarPresetImage}
                     contentFit="cover"
                   />
-                  {selectedAvatar === avatar && (
+{!avatarUri && selectedAvatar === avatar && (
                     <View style={styles.avatarCheckmark}>
                       <Check size={16} color={PulseColors.dark.background} strokeWidth={3} />
                     </View>
@@ -142,9 +255,10 @@ export default function ProfileSetupScreen() {
                   placeholderTextColor={PulseColors.dark.textTertiary}
                   value={username}
                   onChangeText={validateUsername}
-                  autoCapitalize="none"
+autoCapitalize="none"
                   autoCorrect={false}
                   maxLength={20}
+                  editable={!loading}
                 />
               </View>
               {usernameError ? (
@@ -163,8 +277,9 @@ export default function ProfileSetupScreen() {
                   placeholder="Your Name"
                   placeholderTextColor={PulseColors.dark.textTertiary}
                   value={displayName}
-                  onChangeText={setDisplayName}
+onChangeText={setDisplayName}
                   maxLength={30}
+                  editable={!loading}
                 />
               </View>
               <Text style={styles.helperText}>This is how you&apos;ll appear on Pulse</Text>
@@ -185,11 +300,17 @@ export default function ProfileSetupScreen() {
               styles.continueButton,
               !isValid && styles.continueButtonDisabled,
             ]}
-            onPress={handleContinue}
-            disabled={!isValid}
-          >
-            <Text style={styles.continueButtonText}>Continue</Text>
-            <ChevronRight size={24} color="#FFFFFF" />
+onPress={handleContinue}
+            disabled={!isValid || loading}
+>
+            {loading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <>
+                <Text style={styles.continueButtonText}>Continue</Text>
+                <ChevronRight size={24} color="#FFFFFF" />
+              </>
+            )}
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
