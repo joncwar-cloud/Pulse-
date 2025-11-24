@@ -91,7 +91,7 @@ export default function UserProfileScreen() {
   };
 
   const handlePostPress = (post: Post) => {
-    Alert.alert('View Post', `Post by @${post.user.username}`);
+    router.push(`/post/${post.id}`);
   };
 
   if (profileQuery.isLoading) {

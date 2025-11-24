@@ -57,7 +57,11 @@ export default function CommunitiesScreen() {
           </View>
 
           {filteredCommunities.map((community) => (
-            <TouchableOpacity key={community.id} style={styles.communityCard}>
+            <TouchableOpacity 
+              key={community.id} 
+              style={styles.communityCard}
+              onPress={() => router.push(`/community/${community.id}`)}
+            >
               <View style={styles.communityIcon}>
                 <Text style={styles.communityIconText}>{community.icon}</Text>
               </View>
@@ -75,7 +79,10 @@ export default function CommunitiesScreen() {
                   styles.joinButton,
                   community.isJoined && styles.joinedButton,
                 ]}
-                onPress={() => handleJoinToggle(community.id, community.isJoined || false)}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  handleJoinToggle(community.id, community.isJoined || false);
+                }}
               >
                 <Text style={[
                   styles.joinButtonText,
