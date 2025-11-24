@@ -16,6 +16,7 @@ export default function OnboardingLayout() {
           animation: 'fade',
         }} 
       />
+      <Stack.Screen name="profile-setup" />
       <Stack.Screen name="interests" />
       <Stack.Screen name="age-verification" />
     </Stack>
