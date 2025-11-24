@@ -120,7 +120,7 @@ export default function InterestsScreen() {
           ]}
           onPress={handleContinue}
           disabled={selectedInterests.length < 3}
-          activeOpacity={0.7}
+          activeOpacity={selectedInterests.length < 3 ? 1 : 0.7}
         >
           <Text style={[
             styles.continueButtonText,
@@ -230,6 +230,7 @@ const styles = StyleSheet.create({
   },
   continueButtonDisabled: {
     backgroundColor: PulseColors.dark.surface,
+    opacity: 0.6,
   },
   continueButtonText: {
     fontSize: 17,
