@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { ArrowLeft, Users, TrendingUp, MessageCircle, Shield, Sparkles, Zap, Loader } from 'lucide-react-native';
-import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, Image, Alert, ActivityIndicator } from 'react-native';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, ActivityIndicator, FlatList, ScrollView } from 'react-native';
 import { useMutation } from '@tanstack/react-query';
 import { generateText } from '@rork-ai/toolkit-sdk';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -10,9 +10,9 @@ import { PulseColors } from '@/constants/colors';
 import { useCommunities } from '@/contexts/CommunityContext';
 import { mockPosts } from '@/mocks/posts';
 import { Post } from '@/types';
+import PostCard from '@/components/PostCard';
 
-const { width } = Dimensions.get('window');
-const GRID_ITEM_SIZE = (width - 6) / 3;
+const { width, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 interface AIModeratorInfo {
   name: string;
@@ -37,7 +37,10 @@ export default function CommunityDetailScreen() {
   const router = useRouter();
   const { communities, joinCommunity, leaveCommunity } = useCommunities();
   const [activeTab, setActiveTab] = useState<TabType>('posts');
-  const [aiGeneratedPosts, setAiGeneratedPosts] = useState<string[]>([]);
+  const [aiGeneratedPosts, setAiGeneratedPosts] = useState<Post[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const flatListRef = useRef<FlatList>(null);
+  const autoGenerateIntervalRef = useRef<number | null>(null);
 
   const community = useMemo(() => 
     communities.find(c => c.id === id),
@@ -51,13 +54,13 @@ export default function CommunityDetailScreen() {
     [community]
   );
 
-  const communityPosts = useMemo(() => 
-    mockPosts.filter(post => 
+  const communityPosts = useMemo(() => {
+    const filtered = mockPosts.filter(post => 
       post.community?.toLowerCase() === community?.name.toLowerCase() ||
       post.tags.some(tag => tag.toLowerCase() === community?.name.toLowerCase())
-    ).slice(0, 12),
-    [community]
-  );
+    );
+    return [...aiGeneratedPosts, ...filtered];
+  }, [community, aiGeneratedPosts]);
 
   const handleJoinToggle = () => {
     if (!community) return;
@@ -69,7 +72,7 @@ export default function CommunityDetailScreen() {
   };
 
   const handlePostPress = (post: Post) => {
-    router.push(`/post/${post.id}`);
+    console.log('[Community] Post pressed:', post.id);
   };
 
   const generateAIPostMutation = useMutation({
@@ -102,21 +105,55 @@ Write the post content only, no title needed:`;
     },
     onSuccess: (content) => {
       console.log('[AI Post Generation] Adding to posts');
-      setAiGeneratedPosts(prev => [content, ...prev]);
-      Alert.alert(
-        '🤖 AI Post Created',
-        'The AI moderator has created a new post for this community!',
-        [{ text: 'View Posts', onPress: () => setActiveTab('posts') }]
-      );
+      
+      const newPost: Post = {
+        id: `ai_post_${Date.now()}`,
+        user: {
+          id: `ai_${community?.id}`,
+          username: aiModerator?.name.toLowerCase().replace(/\s+/g, '_') || 'ai_moderator',
+          displayName: aiModerator?.name || 'AI Moderator',
+          avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${aiModerator?.name}`,
+          verified: true,
+          isPremium: false,
+        },
+        type: 'text',
+        content,
+        timestamp: new Date(),
+        votes: Math.floor(Math.random() * 100 + 50),
+        comments: Math.floor(Math.random() * 20 + 5),
+        shares: Math.floor(Math.random() * 10),
+        rating: 'sfw',
+        quality: 'high',
+        tags: community?.pointsOfInterest?.slice(0, 3) || [community?.category || 'general'],
+        community: community?.name,
+      };
+      
+      setAiGeneratedPosts(prev => [newPost, ...prev]);
     },
     onError: (error) => {
       console.error('[AI Post Generation] Error:', error);
-      Alert.alert(
-        'Generation Failed',
-        'Failed to generate AI content. Please check your connection and try again.'
-      );
     },
   });
+
+  useEffect(() => {
+    if (!community || !aiModerator) return;
+
+    console.log('[Auto AI Post] Setting up interval for community:', community.name);
+    
+    autoGenerateIntervalRef.current = setInterval(() => {
+      console.log('[Auto AI Post] Generating post automatically');
+      generateAIPostMutation.mutate();
+    }, 60 * 60 * 1000) as unknown as number;
+
+    generateAIPostMutation.mutate();
+
+    return () => {
+      if (autoGenerateIntervalRef.current) {
+        console.log('[Auto AI Post] Cleaning up interval');
+        clearInterval(autoGenerateIntervalRef.current);
+      }
+    };
+  }, [community?.id, aiModerator]);
 
   if (!community) {
     return (
@@ -136,15 +173,49 @@ Write the post content only, no title needed:`;
     <SafeAreaView style={styles.container} edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
       
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.headerButton} onPress={() => router.back()}>
-          <ArrowLeft size={24} color={PulseColors.dark.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle} numberOfLines={1}>{community.name}</Text>
-        <View style={styles.headerButton} />
-      </View>
+      {activeTab === 'about' && (
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.headerButton} onPress={() => router.back()}>
+            <ArrowLeft size={24} color={PulseColors.dark.text} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle} numberOfLines={1}>{community.name}</Text>
+          <View style={styles.headerButton} />
+        </View>
+      )}
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      {activeTab === 'posts' ? (
+        <FlatList
+          ref={flatListRef}
+          data={communityPosts}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item, index }) => (
+            <PostCard
+              post={item}
+              onPress={() => handlePostPress(item)}
+              isActive={index === currentIndex}
+            />
+          )}
+          pagingEnabled
+          showsVerticalScrollIndicator={false}
+          snapToInterval={SCREEN_HEIGHT}
+          snapToAlignment="start"
+          decelerationRate="fast"
+          onMomentumScrollEnd={(event) => {
+            const index = Math.round(event.nativeEvent.contentOffset.y / SCREEN_HEIGHT);
+            setCurrentIndex(index);
+          }}
+          ListHeaderComponent={
+            communityPosts.length === 0 ? (
+              <View style={[styles.emptyContainer, { height: SCREEN_HEIGHT }]}>
+                <MessageCircle size={48} color={PulseColors.dark.textSecondary} />
+                <Text style={styles.emptyText}>No posts yet</Text>
+                <Text style={styles.emptySubtext}>AI moderator will create posts automatically!</Text>
+              </View>
+            ) : null
+          }
+        />
+      ) : (
+        <ScrollView style={styles.aboutWrapper} showsVerticalScrollIndicator={false}>
         <LinearGradient
           colors={[aiModerator?.color || PulseColors.dark.accent, 'rgba(0,0,0,0)']}
           style={styles.coverGradient}
@@ -237,81 +308,9 @@ Write the post content only, no title needed:`;
           </TouchableOpacity>
         </View>
 
-        {activeTab === 'posts' && (
-          <View style={styles.gridContainer}>
-            {aiGeneratedPosts.length > 0 && (
-              <View style={styles.aiPostsSection}>
-                <View style={styles.aiPostsHeader}>
-                  <Sparkles size={20} color={PulseColors.dark.warning} />
-                  <Text style={styles.aiPostsTitle}>AI Generated Content</Text>
-                </View>
-                {aiGeneratedPosts.map((content, index) => (
-                  <View key={`ai-post-${index}`} style={styles.aiPostCard}>
-                    <View style={styles.aiPostHeader}>
-                      <View style={[styles.aiPostAvatar, { backgroundColor: aiModerator?.color }]}>
-                        <Text style={styles.aiPostAvatarText}>{aiModerator?.avatar}</Text>
-                      </View>
-                      <View style={styles.aiPostInfo}>
-                        <Text style={styles.aiPostAuthor}>{aiModerator?.name}</Text>
-                        <Text style={styles.aiPostTimestamp}>Just now</Text>
-                      </View>
-                      <View style={styles.aiPostBadge}>
-                        <Sparkles size={12} color={PulseColors.dark.warning} />
-                        <Text style={styles.aiPostBadgeText}>AI</Text>
-                      </View>
-                    </View>
-                    <Text style={styles.aiPostContent}>{content}</Text>
-                    <View style={styles.aiPostActions}>
-                      <View style={styles.aiPostAction}>
-                        <Text style={styles.aiPostActionText}>❤️ {Math.floor(Math.random() * 100 + 50)}</Text>
-                      </View>
-                      <View style={styles.aiPostAction}>
-                        <Text style={styles.aiPostActionText}>💬 {Math.floor(Math.random() * 20 + 5)}</Text>
-                      </View>
-                    </View>
-                  </View>
-                ))}
-              </View>
-            )}
-            {communityPosts.length > 0 ? (
-              <View style={styles.grid}>
-                {communityPosts.map((post) => (
-                  <TouchableOpacity
-                    key={post.id}
-                    style={styles.gridItem}
-                    onPress={() => handlePostPress(post)}
-                  >
-                    {post.thumbnailUrl || post.mediaUrl ? (
-                      <Image
-                        source={{ uri: post.thumbnailUrl || post.mediaUrl }}
-                        style={styles.gridImage}
-                        resizeMode="cover"
-                      />
-                    ) : (
-                      <View style={[styles.gridImage, styles.gridPlaceholder]}>
-                        <Text style={styles.gridPlaceholderText} numberOfLines={3}>
-                          {post.content}
-                        </Text>
-                      </View>
-                    )}
-                    <View style={styles.gridOverlay}>
-                      <Text style={styles.gridStats}>❤️ {post.votes}</Text>
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            ) : (
-              <View style={styles.emptyContainer}>
-                <MessageCircle size={48} color={PulseColors.dark.textSecondary} />
-                <Text style={styles.emptyText}>No posts yet</Text>
-                <Text style={styles.emptySubtext}>Be the first to post in this community!</Text>
-              </View>
-            )}
-          </View>
-        )}
 
-        {activeTab === 'about' && (
-          <View style={styles.aboutContainer}>
+
+            <View style={styles.aboutContainer}>
             <View style={styles.aboutSection}>
               <Text style={styles.aboutTitle}>Category</Text>
               <Text style={styles.aboutText}>{community.category}</Text>
@@ -362,9 +361,9 @@ Write the post content only, no title needed:`;
                 })}
               </Text>
             </View>
-          </View>
-        )}
-      </ScrollView>
+            </View>
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
@@ -397,7 +396,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginHorizontal: 12,
   },
-  scrollView: {
+  aboutWrapper: {
+    flex: 1,
+  },
+  aboutScrollWrapper: {
     flex: 1,
   },
   loadingContainer: {
@@ -584,51 +586,10 @@ const styles = StyleSheet.create({
     color: PulseColors.dark.text,
     fontWeight: '800' as const,
   },
-  gridContainer: {
-    minHeight: 400,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 2,
-  },
-  gridItem: {
-    width: GRID_ITEM_SIZE,
-    height: GRID_ITEM_SIZE,
-    position: 'relative' as const,
-  },
-  gridImage: {
-    width: '100%',
-    height: '100%',
-  },
-  gridPlaceholder: {
-    backgroundColor: PulseColors.dark.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 12,
-  },
-  gridPlaceholderText: {
-    fontSize: 12,
-    color: PulseColors.dark.textSecondary,
-    textAlign: 'center',
-  },
-  gridOverlay: {
-    position: 'absolute' as const,
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 8,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  gridStats: {
-    fontSize: 12,
-    fontWeight: '600' as const,
-    color: '#FFFFFF',
-  },
+
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 80,
     paddingHorizontal: 32,
     gap: 12,
   },
@@ -693,92 +654,5 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
     color: PulseColors.dark.text,
   },
-  aiPostsSection: {
-    padding: 20,
-    gap: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: PulseColors.dark.border,
-  },
-  aiPostsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
-  },
-  aiPostsTitle: {
-    fontSize: 18,
-    fontWeight: '800' as const,
-    color: PulseColors.dark.text,
-  },
-  aiPostCard: {
-    backgroundColor: PulseColors.dark.surface,
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 2,
-    borderColor: PulseColors.dark.accent,
-    gap: 12,
-  },
-  aiPostHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  aiPostAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  aiPostAvatarText: {
-    fontSize: 24,
-  },
-  aiPostInfo: {
-    flex: 1,
-  },
-  aiPostAuthor: {
-    fontSize: 16,
-    fontWeight: '800' as const,
-    color: PulseColors.dark.text,
-    marginBottom: 2,
-  },
-  aiPostTimestamp: {
-    fontSize: 12,
-    color: PulseColors.dark.textSecondary,
-  },
-  aiPostBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    backgroundColor: 'rgba(255, 193, 7, 0.2)',
-    borderRadius: 8,
-  },
-  aiPostBadgeText: {
-    fontSize: 10,
-    fontWeight: '800' as const,
-    color: PulseColors.dark.warning,
-  },
-  aiPostContent: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: PulseColors.dark.text,
-  },
-  aiPostActions: {
-    flexDirection: 'row',
-    gap: 16,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: PulseColors.dark.border,
-  },
-  aiPostAction: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  aiPostActionText: {
-    fontSize: 14,
-    fontWeight: '600' as const,
-    color: PulseColors.dark.textSecondary,
-  },
+
 });
