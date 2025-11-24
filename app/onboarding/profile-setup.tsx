@@ -1,0 +1,389 @@
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { ChevronRight, Camera, User, Check } from 'lucide-react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Image } from 'expo-image';
+import { PulseColors } from '@/constants/colors';
+
+const AVATAR_PRESETS = [
+  'https://i.pravatar.cc/150?img=1',
+  'https://i.pravatar.cc/150?img=2',
+  'https://i.pravatar.cc/150?img=3',
+  'https://i.pravatar.cc/150?img=4',
+  'https://i.pravatar.cc/150?img=5',
+  'https://i.pravatar.cc/150?img=6',
+  'https://i.pravatar.cc/150?img=7',
+  'https://i.pravatar.cc/150?img=8',
+  'https://i.pravatar.cc/150?img=9',
+  'https://i.pravatar.cc/150?img=10',
+  'https://i.pravatar.cc/150?img=11',
+  'https://i.pravatar.cc/150?img=12',
+];
+
+export default function ProfileSetupScreen() {
+  const router = useRouter();
+  const params = useLocalSearchParams();
+  const [username, setUsername] = useState('');
+  const [displayName, setDisplayName] = useState('');
+  const [selectedAvatar, setSelectedAvatar] = useState<string>(AVATAR_PRESETS[0]);
+  const [usernameError, setUsernameError] = useState('');
+
+  const validateUsername = (text: string) => {
+    const sanitized = text.toLowerCase().replace(/[^a-z0-9_]/g, '');
+    setUsername(sanitized);
+    
+    if (sanitized.length < 3 && sanitized.length > 0) {
+      setUsernameError('Username must be at least 3 characters');
+    } else if (sanitized.length > 20) {
+      setUsernameError('Username must be 20 characters or less');
+    } else {
+      setUsernameError('');
+    }
+  };
+
+  const handleContinue = () => {
+    if (!username || username.length < 3) {
+      Alert.alert('Username Required', 'Please enter a username with at least 3 characters');
+      return;
+    }
+
+    if (!displayName.trim()) {
+      Alert.alert('Display Name Required', 'Please enter your display name');
+      return;
+    }
+
+    console.log('[ProfileSetup] Profile setup complete:', { username, displayName, selectedAvatar });
+    router.push({
+      pathname: '/onboarding/interests',
+      params: { 
+        ...params,
+        username,
+        displayName,
+        avatar: selectedAvatar,
+      },
+    });
+  };
+
+  const isValid = username.length >= 3 && displayName.trim().length > 0 && !usernameError;
+
+  return (
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <KeyboardAvoidingView 
+        style={styles.keyboardAvoid}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView 
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.header}>
+            <Text style={styles.title}>Create your profile</Text>
+            <Text style={styles.subtitle}>
+              Choose your username and photo
+            </Text>
+          </View>
+
+          <View style={styles.avatarSection}>
+            <View style={styles.selectedAvatarContainer}>
+              <Image 
+                source={{ uri: selectedAvatar }} 
+                style={styles.selectedAvatar}
+                contentFit="cover"
+              />
+              <TouchableOpacity 
+                style={styles.cameraButton}
+                onPress={() => Alert.alert('Photo Upload', 'Photo upload from camera/gallery requires backend integration')}
+              >
+                <Camera size={20} color={PulseColors.dark.background} />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.avatarLabel}>Select a photo or upload your own</Text>
+            
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.avatarGrid}
+            >
+              {AVATAR_PRESETS.map((avatar, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={[
+                    styles.avatarPreset,
+                    selectedAvatar === avatar && styles.avatarPresetSelected,
+                  ]}
+                  onPress={() => setSelectedAvatar(avatar)}
+                >
+                  <Image 
+                    source={{ uri: avatar }} 
+                    style={styles.avatarPresetImage}
+                    contentFit="cover"
+                  />
+                  {selectedAvatar === avatar && (
+                    <View style={styles.avatarCheckmark}>
+                      <Check size={16} color={PulseColors.dark.background} strokeWidth={3} />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+
+          <View style={styles.formSection}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Username</Text>
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputPrefix}>@</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="yourname"
+                  placeholderTextColor={PulseColors.dark.textTertiary}
+                  value={username}
+                  onChangeText={validateUsername}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  maxLength={20}
+                />
+              </View>
+              {usernameError ? (
+                <Text style={styles.errorText}>{usernameError}</Text>
+              ) : (
+                <Text style={styles.helperText}>Letters, numbers, and underscores only</Text>
+              )}
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Display Name</Text>
+              <View style={styles.inputContainer}>
+                <User size={20} color={PulseColors.dark.textSecondary} />
+                <TextInput
+                  style={[styles.input, { paddingLeft: 12 }]}
+                  placeholder="Your Name"
+                  placeholderTextColor={PulseColors.dark.textTertiary}
+                  value={displayName}
+                  onChangeText={setDisplayName}
+                  maxLength={30}
+                />
+              </View>
+              <Text style={styles.helperText}>This is how you&apos;ll appear on Pulse</Text>
+            </View>
+          </View>
+        </ScrollView>
+
+        <View style={styles.footer}>
+          <View style={styles.progressContainer}>
+            <View style={styles.progressBar}>
+              <View style={styles.progressFill} />
+            </View>
+            <Text style={styles.progressText}>Step 1 of 3</Text>
+          </View>
+
+          <TouchableOpacity
+            style={[
+              styles.continueButton,
+              !isValid && styles.continueButtonDisabled,
+            ]}
+            onPress={handleContinue}
+            disabled={!isValid}
+          >
+            <Text style={styles.continueButtonText}>Continue</Text>
+            <ChevronRight size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: PulseColors.dark.background,
+  },
+  keyboardAvoid: {
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 24,
+  },
+  header: {
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 32,
+  },
+  title: {
+    fontSize: 36,
+    fontWeight: '900' as const,
+    color: PulseColors.dark.text,
+    marginBottom: 12,
+    letterSpacing: 0.5,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: PulseColors.dark.textSecondary,
+    lineHeight: 22,
+  },
+  avatarSection: {
+    paddingHorizontal: 24,
+    marginBottom: 32,
+    alignItems: 'center',
+  },
+  selectedAvatarContainer: {
+    position: 'relative' as const,
+    marginBottom: 16,
+  },
+  selectedAvatar: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 4,
+    borderColor: PulseColors.dark.accent,
+  },
+  cameraButton: {
+    position: 'absolute' as const,
+    bottom: 0,
+    right: 0,
+    backgroundColor: PulseColors.dark.accent,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: PulseColors.dark.background,
+  },
+  avatarLabel: {
+    fontSize: 14,
+    color: PulseColors.dark.textSecondary,
+    marginBottom: 16,
+  },
+  avatarGrid: {
+    gap: 12,
+    paddingVertical: 8,
+  },
+  avatarPreset: {
+    position: 'relative' as const,
+    borderWidth: 3,
+    borderColor: PulseColors.dark.border,
+    borderRadius: 36,
+    overflow: 'hidden',
+  },
+  avatarPresetSelected: {
+    borderColor: PulseColors.dark.accent,
+  },
+  avatarPresetImage: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+  },
+  avatarCheckmark: {
+    position: 'absolute' as const,
+    top: 0,
+    right: 0,
+    backgroundColor: PulseColors.dark.accent,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  formSection: {
+    paddingHorizontal: 24,
+    gap: 24,
+  },
+  inputGroup: {
+    gap: 8,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: PulseColors.dark.text,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.5,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: PulseColors.dark.surface,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: PulseColors.dark.border,
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+  },
+  inputPrefix: {
+    fontSize: 18,
+    fontWeight: '700' as const,
+    color: PulseColors.dark.accent,
+    marginRight: 4,
+  },
+  input: {
+    flex: 1,
+    fontSize: 16,
+    color: PulseColors.dark.text,
+    paddingVertical: 14,
+  },
+  helperText: {
+    fontSize: 13,
+    color: PulseColors.dark.textSecondary,
+  },
+  errorText: {
+    fontSize: 13,
+    color: PulseColors.dark.accent,
+    fontWeight: '600' as const,
+  },
+  footer: {
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 8,
+    gap: 16,
+    borderTopWidth: 1,
+    borderTopColor: PulseColors.dark.border,
+  },
+  progressContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  progressBar: {
+    flex: 1,
+    height: 6,
+    backgroundColor: PulseColors.dark.surface,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    width: '10%',
+    height: '100%',
+    backgroundColor: PulseColors.dark.accent,
+  },
+  progressText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: PulseColors.dark.textSecondary,
+    minWidth: 80,
+  },
+  continueButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 18,
+    borderRadius: 16,
+    backgroundColor: PulseColors.dark.accent,
+    gap: 8,
+  },
+  continueButtonDisabled: {
+    backgroundColor: PulseColors.dark.surface,
+    opacity: 0.5,
+  },
+  continueButtonText: {
+    fontSize: 17,
+    fontWeight: '700' as const,
+    color: '#FFFFFF',
+  },
+});

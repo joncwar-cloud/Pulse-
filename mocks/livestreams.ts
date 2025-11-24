@@ -1,0 +1,55 @@
+import { LiveStream } from '@/types';
+
+export const mockLiveStreams: LiveStream[] = [
+  {
+    id: 'live_1',
+    creator: {
+      id: 'user_3',
+      username: 'music_master',
+      displayName: 'Music Master',
+      avatar: 'https://i.pravatar.cc/150?img=14',
+      verified: true,
+      isPremium: true,
+    },
+    title: 'Late Night Jam Session 🎵',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=800',
+    viewerCount: 3245,
+    startedAt: new Date(Date.now() - 1000 * 60 * 45),
+    isLive: true,
+    category: 'Music',
+  },
+  {
+    id: 'live_2',
+    creator: {
+      id: 'user_4',
+      username: 'dance_queen',
+      displayName: 'Dance Queen',
+      avatar: 'https://i.pravatar.cc/150?img=5',
+      verified: true,
+      isPremium: true,
+    },
+    title: 'Dance Tutorial: Hip Hop Basics',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1524594152303-9fd13543fe6e?w=800',
+    viewerCount: 1876,
+    startedAt: new Date(Date.now() - 1000 * 60 * 20),
+    isLive: true,
+    category: 'Dance',
+  },
+  {
+    id: 'live_3',
+    creator: {
+      id: 'user_7',
+      username: 'tech_guru',
+      displayName: 'Tech Guru',
+      avatar: 'https://i.pravatar.cc/150?img=8',
+      verified: true,
+      isPremium: false,
+    },
+    title: 'Building a React Native App Live',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800',
+    viewerCount: 2134,
+    startedAt: new Date(Date.now() - 1000 * 60 * 90),
+    isLive: true,
+    category: 'Tech',
+  },
+];
