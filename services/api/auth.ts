@@ -11,6 +11,7 @@ export const authService = {
     display_name: string;
     date_of_birth?: string;
     interests?: string[];
+    avatar_url?: string;
   }) {
     console.log('[AuthService] Signing up user with email:', email);
     const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -33,7 +34,11 @@ export const authService = {
       .insert([{
         id: authData.user.id,
         email,
-        ...userData,
+        username: userData.username,
+        display_name: userData.display_name,
+        avatar: userData.avatar_url || 'https://api.dicebear.com/7.x/avataaars/png?seed=default',
+        date_of_birth: userData.date_of_birth || null,
+        interests: userData.interests || [],
         created_at: new Date().toISOString(),
       }])
       .select()
@@ -100,6 +105,11 @@ export const authService = {
               console.error('[AuthService] Google session error:', JSON.stringify(sessionError, null, 2));
               throw new Error(sessionError.message || 'Failed to set session');
             }
+            
+            if (sessionData.user) {
+              await this.ensureUserProfile(sessionData.user);
+            }
+            
             return sessionData;
           }
         }
@@ -151,6 +161,11 @@ export const authService = {
               console.error('[AuthService] Facebook session error:', JSON.stringify(sessionError, null, 2));
               throw new Error(sessionError.message || 'Failed to set session');
             }
+            
+            if (sessionData.user) {
+              await this.ensureUserProfile(sessionData.user);
+            }
+            
             return sessionData;
           }
         }
@@ -241,5 +256,46 @@ export const authService = {
 
   onAuthStateChange(callback: (event: string, session: any) => void) {
     return supabase.auth.onAuthStateChange(callback);
+  },
+
+  async ensureUserProfile(user: any) {
+    console.log('[AuthService] Ensuring user profile exists for:', user.id);
+    
+    const { data: existingProfile } = await supabase
+      .from('users')
+      .select('id')
+      .eq('id', user.id)
+      .single();
+
+    if (existingProfile) {
+      console.log('[AuthService] User profile already exists');
+      return existingProfile;
+    }
+
+    console.log('[AuthService] Creating OAuth user profile');
+    const username = user.email?.split('@')[0] || `user_${user.id.slice(0, 8)}`;
+    const displayName = user.user_metadata?.full_name || user.user_metadata?.name || username;
+    const avatar = user.user_metadata?.avatar_url || user.user_metadata?.picture || `https://api.dicebear.com/7.x/avataaars/png?seed=${user.id}`;
+
+    const { data: newProfile, error } = await supabase
+      .from('users')
+      .insert([{
+        id: user.id,
+        email: user.email,
+        username: username,
+        display_name: displayName,
+        avatar: avatar,
+        created_at: new Date().toISOString(),
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[AuthService] Failed to create OAuth profile:', JSON.stringify(error, null, 2));
+      throw new Error(error.message || 'Failed to create user profile');
+    }
+
+    console.log('[AuthService] OAuth user profile created successfully');
+    return newProfile;
   },
 };
