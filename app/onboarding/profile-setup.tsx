@@ -132,7 +132,7 @@ export default function ProfileSetupScreen() {
         });
       } else {
         console.log('[ProfileSetup] Creating new profile');
-        const insertResult = await supabase
+        const { data: insertData, error: insertError } = await supabase
           .from('users')
           .insert([{
             id: supabaseUser.id,
@@ -145,12 +145,12 @@ export default function ProfileSetupScreen() {
           .select()
           .single();
         
-        if (insertResult.error) {
-          console.error('[ProfileSetup] Insert error:', insertResult.error);
-          throw insertResult.error;
+        if (insertError) {
+          console.error('[ProfileSetup] Insert error:', insertError);
+          throw insertError;
         }
         
-        console.log('[ProfileSetup] Profile created:', insertResult.data);
+        console.log('[ProfileSetup] Profile created:', insertData);
       }
 
       console.log('[ProfileSetup] Profile saved, moving to interests');
