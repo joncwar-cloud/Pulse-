@@ -2,13 +2,15 @@ import { Stack, useRouter } from 'expo-router';
 import { Activity, Filter, MapPin, X, Search } from 'lucide-react-native';
 import React, { useMemo, useState, useRef, useCallback, memo } from 'react';
 import { View, StyleSheet, Text, FlatList, Dimensions, TouchableOpacity, ScrollView } from 'react-native';
+import { useQuery } from '@tanstack/react-query';
 import PostCard from '@/components/PostCard';
 import NativeAdCard from '@/components/NativeAdCard';
 import { useContentFilters } from '@/contexts/ContentFilterContext';
 import { useUser } from '@/contexts/UserContext';
 import { useLocationFilter } from '@/contexts/LocationFilterContext';
 import { useMonetization } from '@/contexts/MonetizationContext';
-import { mockPosts } from '@/mocks/posts';
+import { postsService } from '@/services/api/posts';
+
 import { PulseColors } from '@/constants/colors';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ContentType, Post, Ad } from '@/types';
@@ -42,22 +44,35 @@ export default function FeedScreen() {
 
   const { user, isLoading: userLoading } = useUser();
 
+  const postsQuery = useQuery({
+    queryKey: ['feed', activeTab],
+    queryFn: async () => {
+      console.log('[FeedScreen] Fetching posts from database. Active tab:', activeTab);
+      const posts = await postsService.getFeed(50, 0);
+      console.log('[FeedScreen] Fetched posts count:', posts.length);
+      return posts;
+    },
+    staleTime: 1 * 60 * 1000,
+  });
+
   const feedItems = useMemo(() => {
     try {
       console.log('[FeedScreen] Filtering posts. Active tab:', activeTab);
-      let posts = activeTab === 'foryou' 
-        ? mockPosts 
-        : mockPosts.filter((post) => post.user.verified || post.user.isPremium);
+      const dbPosts = postsQuery.data || [];
+      
+      let posts: Post[] = activeTab === 'foryou' 
+        ? dbPosts 
+        : dbPosts.filter((post: Post) => post.user.verified || post.user.isPremium);
 
       if (selectedLocation) {
-        posts = posts.filter((post) => {
+        posts = posts.filter((post: Post) => {
           if (!post.location) return false;
           return post.location.city === selectedLocation.city && 
                  post.location.countryCode === selectedLocation.countryCode;
         });
       }
 
-      posts = posts.filter((post) => {
+      posts = posts.filter((post: Post) => {
         if (!filters.contentTypes.includes(post.type)) {
           return false;
         }
@@ -78,7 +93,7 @@ export default function FeedScreen() {
       });
 
       const items: FeedItem[] = [];
-      posts.forEach((post, index) => {
+      posts.forEach((post: Post, index: number) => {
         items.push({ type: 'post', data: post, id: post.id });
         
         if (!hasAdFree) {
@@ -95,7 +110,7 @@ export default function FeedScreen() {
       console.error('[FeedScreen] Error creating feed:', error);
       return [];
     }
-  }, [filters, activeTab, selectedLocation, hasAdFree]);
+  }, [filters, activeTab, selectedLocation, hasAdFree, postsQuery.data]);
 
   const onViewableItemsChanged = useCallback(({ viewableItems }: any) => {
     if (viewableItems.length > 0) {

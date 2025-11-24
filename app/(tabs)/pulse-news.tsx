@@ -7,6 +7,8 @@ import { PulseColors } from '@/constants/colors';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { generateText } from '@rork-ai/toolkit-sdk';
+import { postsService } from '@/services/api/posts';
+import { Post } from '@/types';
 
 interface NewsStory {
   id: string;
@@ -59,13 +61,42 @@ export default function PulseNewsScreen() {
   const [selectedCategory, setSelectedCategory] = useState<'trending' | 'world' | 'tech' | 'entertainment'>('trending');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const newsQuery = useQuery({
-    queryKey: ['pulse-news', selectedCategory],
+  const trendingPostsQuery = useQuery({
+    queryKey: ['trending-posts'],
     queryFn: async () => {
-      console.log('[PulseNews] Fetching news for category:', selectedCategory);
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      return MOCK_NEWS.filter(story => story.category === selectedCategory || selectedCategory === 'trending');
+      console.log('[PulseNews] Fetching trending posts from database');
+      const posts = await postsService.getTrendingPosts(20);
+      console.log('[PulseNews] Fetched posts:', posts.length);
+      return posts;
     },
+    staleTime: 5 * 60 * 1000,
+  });
+
+
+
+  const newsQuery = useQuery({
+    queryKey: ['pulse-news', selectedCategory, trendingPostsQuery.data?.length],
+    queryFn: async () => {
+      console.log('[PulseNews] Filtering trending posts by category:', selectedCategory);
+      const posts = trendingPostsQuery.data || [];
+      
+      const newsStories: NewsStory[] = posts.slice(0, 10).map((post: Post, index: number) => ({
+        id: post.id,
+        title: post.title || post.content.substring(0, 60) + '...',
+        summary: post.content.substring(0, 150),
+        category: 'trending' as const,
+        source: `@${post.user.username}`,
+        timestamp: post.timestamp,
+        searchVolume: `${post.votes + post.comments + post.shares} engagements`,
+      }));
+      
+      if (selectedCategory === 'trending') {
+        return newsStories;
+      }
+      
+      return MOCK_NEWS.filter(story => story.category === selectedCategory);
+    },
+
     staleTime: 5 * 60 * 1000,
   });
 
