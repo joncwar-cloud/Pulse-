@@ -71,15 +71,27 @@ export default function ProfileSetupScreen() {
     try {
       const finalAvatar = avatarUri || selectedAvatar;
       
+      const { data: usernameCheck } = await supabase
+        .from('users')
+        .select('id')
+        .eq('username', username)
+        .maybeSingle();
+      
+      if (usernameCheck) {
+        Alert.alert('Username Taken', 'This username is already taken. Please choose another.');
+        setLoading(false);
+        return;
+      }
+      
       const existingProfile = await authService.getUserProfile(supabaseUser.id);
       
       if (existingProfile) {
         await authService.updateUserProfile(supabaseUser.id, {
           username,
           display_name: displayName,
-          avatar_url: finalAvatar,
+          avatar: finalAvatar,
         });
-} else {
+      } else {
         const { error } = await supabase
           .from('users')
           .insert([{

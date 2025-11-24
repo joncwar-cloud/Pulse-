@@ -1,5 +1,5 @@
-import { Stack } from 'expo-router';
-import { Activity, Filter, MapPin, X } from 'lucide-react-native';
+import { Stack, useRouter } from 'expo-router';
+import { Activity, Filter, MapPin, X, Search } from 'lucide-react-native';
 import React, { useMemo, useState, useRef, useCallback, memo } from 'react';
 import { View, StyleSheet, Text, FlatList, Dimensions, TouchableOpacity, ScrollView } from 'react-native';
 import PostCard from '@/components/PostCard';
@@ -30,6 +30,7 @@ const MemoizedPostCard = memo(PostCard);
 const MemoizedNativeAdCard = memo(NativeAdCard);
 
 export default function FeedScreen() {
+  const router = useRouter();
   const { filters, toggleContentType } = useContentFilters();
   const { hasOnboarded } = useUser();
   const { selectedLocation, clearLocation } = useLocationFilter();
@@ -144,6 +145,12 @@ export default function FeedScreen() {
       />
 
       <View style={styles.header}>
+        <TouchableOpacity 
+          style={styles.searchButton}
+          onPress={() => router.push('/search')}
+        >
+          <Search size={20} color={PulseColors.dark.text} />
+        </TouchableOpacity>
         <Activity size={24} color={PulseColors.dark.accent} />
         <Text style={styles.headerTitle}>Pulse</Text>
         <TouchableOpacity 
@@ -275,6 +282,13 @@ const styles = StyleSheet.create({
     fontWeight: '900' as const,
     color: PulseColors.dark.text,
     letterSpacing: 1,
+  },
+  searchButton: {
+    position: 'absolute' as const,
+    left: 20,
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   filterButton: {
     position: 'absolute' as const,
