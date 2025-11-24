@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
-import { Heart, MessageCircle, Share2, CheckCircle, Crown, Bookmark, MapPin, DollarSign, Gift } from 'lucide-react-native';
+import { Heart, MessageCircle, Share2, CheckCircle, Crown, Bookmark, MapPin, DollarSign, Gift, Send, X } from 'lucide-react-native';
 import React, { useState, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Pressable, Dimensions, Alert, Modal, Share, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Pressable, Dimensions, Alert, Modal, Share, Platform, TextInput, KeyboardAvoidingView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Post } from '@/types';
@@ -22,6 +22,8 @@ export default function PostCard({ post, onPress, isActive }: PostCardProps) {
   const [saved, setSaved] = useState(false);
   const [likeCount, setLikeCount] = useState(post?.votes || 0);
   const [showTipModal, setShowTipModal] = useState(false);
+  const [showCommentModal, setShowCommentModal] = useState(false);
+  const [commentText, setCommentText] = useState('');
   const { wallet, sendTip, spendCoins } = useMonetization();
 
   const tipAmounts = [10, 25, 50, 100, 250, 500];
@@ -116,6 +118,19 @@ export default function PostCard({ post, onPress, isActive }: PostCardProps) {
     }
   }, [post]);
 
+  const handleComment = useCallback(() => {
+    setShowCommentModal(true);
+  }, []);
+
+  const handleSendComment = useCallback(() => {
+    if (!commentText.trim()) return;
+    
+    console.log('[PostCard] Sending comment:', commentText, 'for post:', post.id);
+    Alert.alert('Comment Posted', 'Your comment has been posted successfully!');
+    setCommentText('');
+    setShowCommentModal(false);
+  }, [commentText, post.id]);
+
 
 
   if (!post) {
@@ -152,7 +167,7 @@ export default function PostCard({ post, onPress, isActive }: PostCardProps) {
           <Text style={styles.actionCount}>{formattedLikeCount}</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.actionContainer}>
+        <TouchableOpacity style={styles.actionContainer} onPress={handleComment}>
           <MessageCircle size={32} color={PulseColors.dark.text} />
           <Text style={styles.actionCount}>{formattedCommentCount}</Text>
         </TouchableOpacity>
@@ -218,6 +233,63 @@ export default function PostCard({ post, onPress, isActive }: PostCardProps) {
             </TouchableOpacity>
           </Pressable>
         </Pressable>
+      </Modal>
+
+      <Modal
+        visible={showCommentModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowCommentModal(false)}
+      >
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.commentModalOverlay}
+        >
+          <TouchableOpacity 
+            style={styles.commentModalBackdrop} 
+            activeOpacity={1} 
+            onPress={() => setShowCommentModal(false)}
+          />
+          <View style={styles.commentModalContainer}>
+            <View style={styles.commentModalHeader}>
+              <Text style={styles.commentModalTitle}>Add Comment</Text>
+              <TouchableOpacity onPress={() => setShowCommentModal(false)}>
+                <X size={24} color={PulseColors.dark.text} />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.commentPostPreview}>
+              <Image source={{ uri: post.user.avatar }} style={styles.commentUserAvatar} />
+              <View style={styles.commentPostInfo}>
+                <Text style={styles.commentUserName}>{post.user.displayName}</Text>
+                <Text style={styles.commentPostText} numberOfLines={2}>{post.content}</Text>
+              </View>
+            </View>
+            
+            <View style={styles.commentInputWrapper}>
+              <TextInput
+                style={styles.commentInput}
+                placeholder="Write a comment..."
+                placeholderTextColor={PulseColors.dark.textTertiary}
+                value={commentText}
+                onChangeText={setCommentText}
+                multiline
+                autoFocus
+              />
+            </View>
+            
+            <TouchableOpacity 
+              style={[styles.commentSendButton, !commentText.trim() && styles.commentSendButtonDisabled]}
+              onPress={handleSendComment}
+              disabled={!commentText.trim()}
+            >
+              <Send size={20} color={commentText.trim() ? '#FFFFFF' : PulseColors.dark.textTertiary} />
+              <Text style={[styles.commentSendButtonText, !commentText.trim() && styles.commentSendButtonTextDisabled]}>
+                Post Comment
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <View style={styles.bottomContent}>
@@ -473,5 +545,91 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700' as const,
     color: PulseColors.dark.text,
+  },
+  commentModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    justifyContent: 'flex-end',
+  },
+  commentModalBackdrop: {
+    flex: 1,
+  },
+  commentModalContainer: {
+    backgroundColor: PulseColors.dark.surface,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    paddingBottom: 40,
+  },
+  commentModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  commentModalTitle: {
+    fontSize: 20,
+    fontWeight: '800' as const,
+    color: PulseColors.dark.text,
+  },
+  commentPostPreview: {
+    flexDirection: 'row',
+    gap: 12,
+    padding: 12,
+    backgroundColor: PulseColors.dark.background,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  commentUserAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  commentPostInfo: {
+    flex: 1,
+  },
+  commentUserName: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: PulseColors.dark.text,
+    marginBottom: 4,
+  },
+  commentPostText: {
+    fontSize: 13,
+    color: PulseColors.dark.textSecondary,
+    lineHeight: 18,
+  },
+  commentInputWrapper: {
+    marginBottom: 16,
+  },
+  commentInput: {
+    backgroundColor: PulseColors.dark.background,
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 15,
+    color: PulseColors.dark.text,
+    minHeight: 100,
+    maxHeight: 200,
+    textAlignVertical: 'top',
+  },
+  commentSendButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: PulseColors.dark.accent,
+    paddingVertical: 16,
+    borderRadius: 12,
+  },
+  commentSendButtonDisabled: {
+    backgroundColor: PulseColors.dark.border,
+  },
+  commentSendButtonText: {
+    fontSize: 16,
+    fontWeight: '800' as const,
+    color: '#FFFFFF',
+  },
+  commentSendButtonTextDisabled: {
+    color: PulseColors.dark.textTertiary,
   },
 });

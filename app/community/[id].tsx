@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
-import { ArrowLeft, Users, TrendingUp, MessageCircle, Shield, Sparkles, Zap, Loader, Heart, Share2, CheckCircle, Crown } from 'lucide-react-native';
+import { ArrowLeft, Users, TrendingUp, MessageCircle, Shield, Sparkles, Zap, Loader, Heart, Share2, CheckCircle, Crown, Send, X } from 'lucide-react-native';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, FlatList, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, FlatList, ScrollView, Modal, TextInput, KeyboardAvoidingView, Platform, Share as RNShare, Alert } from 'react-native';
 import { Image } from 'expo-image';
 import { useMutation } from '@tanstack/react-query';
 import { generateText } from '@rork-ai/toolkit-sdk';
@@ -40,6 +40,9 @@ export default function CommunityDetailScreen() {
   const [activeTab, setActiveTab] = useState<TabType>('posts');
   const [aiGeneratedPosts, setAiGeneratedPosts] = useState<Post[]>([]);
   const [liked, setLiked] = useState(false);
+  const [commentModalVisible, setCommentModalVisible] = useState(false);
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const [commentText, setCommentText] = useState('');
   const flatListRef = useRef<FlatList>(null);
   const autoGenerateIntervalRef = useRef<number | null>(null);
 
@@ -80,12 +83,51 @@ export default function CommunityDetailScreen() {
     setLiked(prev => !prev);
   };
 
-  const handleShare = async () => {
-    console.log('[Community] Share pressed');
+  const handleShare = async (post: Post) => {
+    try {
+      const shareContent = {
+        message: `${post.title ? post.title + '\n' : ''}${post.content}\n\nCheck out this post in ${community?.name}!`,
+        url: `https://pulse.app/post/${post.id}`,
+      };
+
+      if (Platform.OS === 'web') {
+        if (navigator.share) {
+          await navigator.share({
+            title: post.title || 'Pulse Post',
+            text: shareContent.message,
+            url: shareContent.url,
+          });
+        } else {
+          await navigator.clipboard.writeText(`${shareContent.message}\n${shareContent.url}`);
+          Alert.alert('Link Copied', 'The post link has been copied to your clipboard!');
+        }
+      } else {
+        await RNShare.share({
+          message: `${shareContent.message}\n${shareContent.url}`,
+        });
+      }
+    } catch (error) {
+      console.error('[Community] Error sharing post:', error);
+    }
   };
 
-  const handleProfilePress = () => {
-    console.log('[Community] Profile pressed');
+  const handleProfilePress = (username: string) => {
+    console.log('[Community] Profile pressed:', username);
+    router.push(`/user/${username}`);
+  };
+
+  const handleComment = (post: Post) => {
+    setSelectedPost(post);
+    setCommentModalVisible(true);
+  };
+
+  const handleSendComment = () => {
+    if (!commentText.trim() || !selectedPost) return;
+    
+    console.log('[Community] Sending comment:', commentText, 'for post:', selectedPost.id);
+    Alert.alert('Comment Posted', 'Your comment has been posted successfully!');
+    setCommentText('');
+    setCommentModalVisible(false);
   };
 
   const formatNumber = (num: number) => {
@@ -190,7 +232,7 @@ Write the post content only, no title needed:`;
 
   const renderTextPost = (post: Post) => (
     <View style={styles.textPostCard}>
-      <TouchableOpacity style={styles.textPostHeader} onPress={handleProfilePress}>
+      <TouchableOpacity style={styles.textPostHeader} onPress={() => handleProfilePress(post.user.username)}>
         <Image source={{ uri: post.user.avatar }} style={styles.textPostAvatar} />
         <View style={styles.textPostUserInfo}>
           <View style={styles.textPostNameRow}>
@@ -222,12 +264,12 @@ Write the post content only, no title needed:`;
           <Text style={styles.textPostActionText}>{formatNumber(post.votes)}</Text>
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.textPostAction}>
+        <TouchableOpacity style={styles.textPostAction} onPress={() => handleComment(post)}>
           <MessageCircle size={20} color={PulseColors.dark.textSecondary} />
           <Text style={styles.textPostActionText}>{formatNumber(post.comments)}</Text>
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.textPostAction} onPress={handleShare}>
+        <TouchableOpacity style={styles.textPostAction} onPress={() => handleShare(post)}>
           <Share2 size={20} color={PulseColors.dark.textSecondary} />
         </TouchableOpacity>
       </View>
@@ -245,6 +287,38 @@ Write the post content only, no title needed:`;
         <Text style={styles.headerTitle} numberOfLines={1}>{community.name}</Text>
         <View style={styles.headerButton} />
       </View>
+
+      {activeTab === 'posts' && (
+        <LinearGradient
+          colors={[aiModerator?.color || PulseColors.dark.accent, 'rgba(10, 10, 11, 0.8)']}
+          style={styles.communityBanner}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <View style={styles.bannerContent}>
+            <View style={styles.bannerIconContainer}>
+              <Text style={styles.bannerIcon}>{community.icon}</Text>
+            </View>
+            <View style={styles.bannerInfo}>
+              <Text style={styles.bannerName}>{community.name}</Text>
+              <View style={styles.bannerStats}>
+                <Users size={14} color="rgba(255, 255, 255, 0.9)" />
+                <Text style={styles.bannerStatText}>{formatNumber(community.memberCount)} members</Text>
+                <Text style={styles.bannerDot}>•</Text>
+                <Text style={styles.bannerStatText}>{communityPosts.length} posts</Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={[styles.bannerJoinButton, community.isJoined && styles.bannerJoinedButton]}
+              onPress={handleJoinToggle}
+            >
+              <Text style={[styles.bannerJoinText, community.isJoined && styles.bannerJoinedText]}>
+                {community.isJoined ? 'Joined' : 'Join'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </LinearGradient>
+      )}
 
       {activeTab === 'posts' ? (
         <FlatList
@@ -420,6 +494,65 @@ Write the post content only, no title needed:`;
             </View>
         </ScrollView>
       )}
+
+      <Modal
+        visible={commentModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setCommentModalVisible(false)}
+      >
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
+          <TouchableOpacity 
+            style={styles.modalBackdrop} 
+            activeOpacity={1} 
+            onPress={() => setCommentModalVisible(false)}
+          />
+          <View style={styles.commentModal}>
+            <View style={styles.commentModalHeader}>
+              <Text style={styles.commentModalTitle}>Add Comment</Text>
+              <TouchableOpacity onPress={() => setCommentModalVisible(false)}>
+                <X size={24} color={PulseColors.dark.text} />
+              </TouchableOpacity>
+            </View>
+            
+            {selectedPost && (
+              <View style={styles.commentPostPreview}>
+                <Image source={{ uri: selectedPost.user.avatar }} style={styles.commentUserAvatar} />
+                <View style={styles.commentPostInfo}>
+                  <Text style={styles.commentUserName}>{selectedPost.user.displayName}</Text>
+                  <Text style={styles.commentPostText} numberOfLines={2}>{selectedPost.content}</Text>
+                </View>
+              </View>
+            )}
+            
+            <View style={styles.commentInputContainer}>
+              <TextInput
+                style={styles.commentInput}
+                placeholder="Write a comment..."
+                placeholderTextColor={PulseColors.dark.textTertiary}
+                value={commentText}
+                onChangeText={setCommentText}
+                multiline
+                autoFocus
+              />
+            </View>
+            
+            <TouchableOpacity 
+              style={[styles.sendButton, !commentText.trim() && styles.sendButtonDisabled]}
+              onPress={handleSendComment}
+              disabled={!commentText.trim()}
+            >
+              <Send size={20} color={commentText.trim() ? '#FFFFFF' : PulseColors.dark.textTertiary} />
+              <Text style={[styles.sendButtonText, !commentText.trim() && styles.sendButtonTextDisabled]}>
+                Post Comment
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -783,5 +916,155 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600' as const,
     color: PulseColors.dark.textSecondary,
+  },
+  communityBanner: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: PulseColors.dark.border,
+  },
+  bannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  bannerIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bannerIcon: {
+    fontSize: 24,
+  },
+  bannerInfo: {
+    flex: 1,
+  },
+  bannerName: {
+    fontSize: 16,
+    fontWeight: '800' as const,
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  bannerStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  bannerStatText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: 'rgba(255, 255, 255, 0.9)',
+  },
+  bannerDot: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.6)',
+  },
+  bannerJoinButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+  },
+  bannerJoinedButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderWidth: 1,
+    borderColor: '#FFFFFF',
+  },
+  bannerJoinText: {
+    fontSize: 14,
+    fontWeight: '800' as const,
+    color: PulseColors.dark.background,
+  },
+  bannerJoinedText: {
+    color: '#FFFFFF',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    justifyContent: 'flex-end',
+  },
+  modalBackdrop: {
+    flex: 1,
+  },
+  commentModal: {
+    backgroundColor: PulseColors.dark.surface,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    paddingBottom: 40,
+  },
+  commentModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  commentModalTitle: {
+    fontSize: 20,
+    fontWeight: '800' as const,
+    color: PulseColors.dark.text,
+  },
+  commentPostPreview: {
+    flexDirection: 'row',
+    gap: 12,
+    padding: 12,
+    backgroundColor: PulseColors.dark.background,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  commentUserAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  commentPostInfo: {
+    flex: 1,
+  },
+  commentUserName: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: PulseColors.dark.text,
+    marginBottom: 4,
+  },
+  commentPostText: {
+    fontSize: 13,
+    color: PulseColors.dark.textSecondary,
+    lineHeight: 18,
+  },
+  commentInputContainer: {
+    marginBottom: 16,
+  },
+  commentInput: {
+    backgroundColor: PulseColors.dark.background,
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 15,
+    color: PulseColors.dark.text,
+    minHeight: 100,
+    maxHeight: 200,
+    textAlignVertical: 'top',
+  },
+  sendButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: PulseColors.dark.accent,
+    paddingVertical: 16,
+    borderRadius: 12,
+  },
+  sendButtonDisabled: {
+    backgroundColor: PulseColors.dark.border,
+  },
+  sendButtonText: {
+    fontSize: 16,
+    fontWeight: '800' as const,
+    color: '#FFFFFF',
+  },
+  sendButtonTextDisabled: {
+    color: PulseColors.dark.textTertiary,
   },
 });
