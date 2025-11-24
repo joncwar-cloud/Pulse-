@@ -1,5 +1,5 @@
 import { Stack, useRouter } from 'expo-router';
-import { LogIn, Mail, Chrome, Facebook as FacebookIcon } from 'lucide-react-native';
+import { LogIn, Mail, Chrome, Facebook as FacebookIcon, Camera, Check } from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
   View,
@@ -13,6 +13,8 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PulseColors } from '@/constants/colors';
@@ -20,6 +22,21 @@ import { authService } from '@/services/api/auth';
 import { useUser } from '@/contexts/UserContext';
 
 type AuthMode = 'signin' | 'signup';
+
+const AVATAR_PRESETS = [
+  'https://api.dicebear.com/7.x/avataaars/png?seed=Felix&backgroundColor=b6e3f4',
+  'https://api.dicebear.com/7.x/avataaars/png?seed=Aneka&backgroundColor=ffd5dc',
+  'https://api.dicebear.com/7.x/avataaars/png?seed=Luna&backgroundColor=c0aede',
+  'https://api.dicebear.com/7.x/avataaars/png?seed=Max&backgroundColor=d1d4f9',
+  'https://api.dicebear.com/7.x/avataaars/png?seed=Oliver&backgroundColor=ffdfbf',
+  'https://api.dicebear.com/7.x/avataaars/png?seed=Sophia&backgroundColor=ffd5dc',
+  'https://api.dicebear.com/7.x/avataaars/png?seed=Jack&backgroundColor=c0aede',
+  'https://api.dicebear.com/7.x/avataaars/png?seed=Emma&backgroundColor=b6e3f4',
+  'https://api.dicebear.com/7.x/avataaars/png?seed=Charlie&backgroundColor=d1d4f9',
+  'https://api.dicebear.com/7.x/avataaars/png?seed=Mia&backgroundColor=ffdfbf',
+  'https://api.dicebear.com/7.x/avataaars/png?seed=Leo&backgroundColor=b6e3f4',
+  'https://api.dicebear.com/7.x/avataaars/png?seed=Zoe&backgroundColor=ffd5dc',
+];
 
 export default function AuthScreen() {
   const router = useRouter();
@@ -29,6 +46,8 @@ export default function AuthScreen() {
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [avatarUri, setAvatarUri] = useState<string | null>(null);
+  const [selectedPreset, setSelectedPreset] = useState<string>(AVATAR_PRESETS[0]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,10 +74,12 @@ export default function AuthScreen() {
         await refreshUser();
         router.replace('/(tabs)');
       } else {
-        await authService.signUp(email, password, {
+        const profileData = {
           username,
           display_name: displayName,
-        });
+          avatar_url: avatarUri || selectedPreset,
+        };
+        await authService.signUp(email, password, profileData);
         console.log('[AuthScreen] Sign up successful');
         Alert.alert(
           'Success!',
@@ -114,6 +135,71 @@ export default function AuthScreen() {
   const toggleMode = () => {
     setMode(mode === 'signin' ? 'signup' : 'signin');
     setError(null);
+    setAvatarUri(null);
+    setSelectedPreset(AVATAR_PRESETS[0]);
+  };
+
+  const pickImage = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Please allow access to your photo library to upload a profile picture.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'] as any,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        setAvatarUri(result.assets[0].uri);
+        console.log('[AuthScreen] Image selected:', result.assets[0].uri);
+      }
+    } catch (err) {
+      console.error('[AuthScreen] Image picker error:', err);
+      Alert.alert('Error', 'Failed to pick image. Please try again.');
+    }
+  };
+
+  const takePhoto = async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Please allow access to your camera to take a profile picture.');
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        setAvatarUri(result.assets[0].uri);
+        console.log('[AuthScreen] Photo taken:', result.assets[0].uri);
+      }
+    } catch (err) {
+      console.error('[AuthScreen] Camera error:', err);
+      Alert.alert('Error', 'Failed to take photo. Please try again.');
+    }
+  };
+
+  const showImageOptions = () => {
+    Alert.alert(
+      'Profile Photo',
+      'Choose how to set your profile photo',
+      [
+        { text: 'Take Photo', onPress: takePhoto },
+        { text: 'Choose from Library', onPress: pickImage },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
   };
 
   return (
@@ -156,6 +242,59 @@ export default function AuthScreen() {
 
               {mode === 'signup' && (
                 <>
+                  <View style={styles.avatarSection}>
+                    <Text style={styles.label}>Profile Photo</Text>
+                    <View style={styles.avatarContainer}>
+                      <View style={styles.selectedAvatarWrapper}>
+                        <Image 
+                          source={{ uri: avatarUri || selectedPreset }} 
+                          style={styles.selectedAvatar}
+                          contentFit="cover"
+                        />
+                        <TouchableOpacity 
+                          style={styles.cameraButton}
+                          onPress={showImageOptions}
+                          disabled={loading}
+                        >
+                          <Camera size={18} color={PulseColors.dark.background} />
+                        </TouchableOpacity>
+                      </View>
+                      
+                      <ScrollView 
+                        horizontal 
+                        showsHorizontalScrollIndicator={false}
+                        style={styles.presetsScroll}
+                        contentContainerStyle={styles.presetsContainer}
+                      >
+                        {AVATAR_PRESETS.map((preset, index) => (
+                          <TouchableOpacity
+                            key={index}
+                            style={[
+                              styles.presetAvatar,
+                              !avatarUri && selectedPreset === preset && styles.presetAvatarSelected,
+                            ]}
+                            onPress={() => {
+                              setSelectedPreset(preset);
+                              setAvatarUri(null);
+                            }}
+                            disabled={loading}
+                          >
+                            <Image 
+                              source={{ uri: preset }} 
+                              style={styles.presetAvatarImage}
+                              contentFit="cover"
+                            />
+                            {!avatarUri && selectedPreset === preset && (
+                              <View style={styles.checkmark}>
+                                <Check size={12} color={PulseColors.dark.background} strokeWidth={3} />
+                              </View>
+                            )}
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
+                    </View>
+                  </View>
+
                   <View style={styles.inputContainer}>
                     <Text style={styles.label}>Username</Text>
                     <TextInput
@@ -411,5 +550,70 @@ const styles = StyleSheet.create({
   toggleTextBold: {
     fontWeight: '700' as const,
     color: PulseColors.dark.accent,
+  },
+  avatarSection: {
+    gap: 12,
+  },
+  avatarContainer: {
+    gap: 16,
+  },
+  selectedAvatarWrapper: {
+    alignSelf: 'center',
+    position: 'relative' as const,
+  },
+  selectedAvatar: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 3,
+    borderColor: PulseColors.dark.accent,
+    backgroundColor: PulseColors.dark.surface,
+  },
+  cameraButton: {
+    position: 'absolute' as const,
+    bottom: 0,
+    right: 0,
+    backgroundColor: PulseColors.dark.accent,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: PulseColors.dark.background,
+  },
+  presetsScroll: {
+    flexGrow: 0,
+  },
+  presetsContainer: {
+    gap: 12,
+    paddingHorizontal: 4,
+  },
+  presetAvatar: {
+    position: 'relative' as const,
+    borderWidth: 2,
+    borderColor: PulseColors.dark.border,
+    borderRadius: 30,
+    overflow: 'hidden',
+  },
+  presetAvatarSelected: {
+    borderColor: PulseColors.dark.accent,
+    borderWidth: 3,
+  },
+  presetAvatarImage: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+  },
+  checkmark: {
+    position: 'absolute' as const,
+    top: 2,
+    right: 2,
+    backgroundColor: PulseColors.dark.accent,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
