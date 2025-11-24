@@ -48,8 +48,7 @@ export default function AgeVerificationScreen() {
         <View style={styles.header}>
           <Text style={styles.title}>When&apos;s your birthday?</Text>
           <Text style={styles.subtitle}>
-            We need to verify your age for content filtering.{'\n'}
-            {age < 18 && 'Child safety mode will be automatically enabled.'}
+            We need to verify your age for content filtering.{age < 18 ? '\nChild safety mode will be automatically enabled for users under 18.' : ''}
           </Text>
         </View>
 
