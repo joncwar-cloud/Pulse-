@@ -544,6 +544,14 @@ export default function ProfileScreen() {
               </Text>
             </View>
           )}
+
+          <View style={styles.legalLinks}>
+            <TouchableOpacity onPress={() => console.log('[Settings] Privacy Policy')}>              <Text style={styles.legalLinkText}>Privacy Policy</Text>
+            </TouchableOpacity>
+            <Text style={styles.legalSeparator}>•</Text>
+            <TouchableOpacity onPress={() => console.log('[Settings] Terms of Service')}>              <Text style={styles.legalLinkText}>Terms of Service</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.section}>
@@ -1133,5 +1141,24 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
     color: PulseColors.dark.text,
     textAlign: 'center' as const,
+  },
+  legalLinks: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: PulseColors.dark.border,
+  },
+  legalLinkText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: PulseColors.dark.textSecondary,
+  },
+  legalSeparator: {
+    fontSize: 13,
+    color: PulseColors.dark.textTertiary,
   },
 });
