@@ -102,14 +102,31 @@ export default function CreateListingScreen() {
         setUploading(true);
         try {
           const asset = result.assets[0];
-          const uri = Platform.OS === 'web' 
-            ? asset.uri 
-            : await storageService.uploadMarketplaceImage(asset.uri, user?.id || 'anonymous');
+          let uri = asset.uri;
+          
+          if (Platform.OS !== 'web') {
+            try {
+              uri = await storageService.uploadMarketplaceImage(asset.uri, user?.id || 'anonymous');
+              console.log('[CreateListing] Image uploaded successfully:', uri);
+            } catch (uploadError: any) {
+              console.error('[CreateListing] Upload error:', uploadError);
+              if (uploadError.message?.includes('storage') || uploadError.message?.includes('bucket')) {
+                Alert.alert(
+                  'Storage Not Configured',
+                  'The marketplace storage bucket needs to be created in Supabase. Using local image for now.',
+                  [{ text: 'OK' }]
+                );
+                uri = asset.uri;
+              } else {
+                throw uploadError;
+              }
+            }
+          }
           
           setImages([...images, uri]);
         } catch (error: any) {
-          console.error('[CreateListing] Upload error:', error);
-          Alert.alert('Upload Failed', error.message || 'Failed to upload image');
+          console.error('[CreateListing] Error:', error);
+          Alert.alert('Error', error.message || 'Failed to process image');
         } finally {
           setUploading(false);
         }

@@ -16,6 +16,8 @@ export const marketplaceService = {
     local_pickup: boolean;
   }) {
     console.log('[MarketplaceService] Creating listing:', listing.title);
+    console.log('[MarketplaceService] Listing data:', JSON.stringify(listing, null, 2));
+    
     const { data, error } = await supabase
       .from('marketplace_listings')
       .insert([listing])
@@ -24,8 +26,20 @@ export const marketplaceService = {
 
     if (error) {
       console.error('[MarketplaceService] Error creating listing:', error);
-      throw error;
+      console.error('[MarketplaceService] Error details:', JSON.stringify(error, null, 2));
+      
+      if (error.message?.includes('relation') || error.message?.includes('does not exist')) {
+        throw new Error('The marketplace_listings table needs to be created in Supabase. Please check your database setup.');
+      }
+      
+      if (error.message?.includes('permission') || error.message?.includes('RLS')) {
+        throw new Error('Permission denied. Please check your Row Level Security policies in Supabase.');
+      }
+      
+      throw new Error(error.message || 'Failed to create listing');
     }
+    
+    console.log('[MarketplaceService] Listing created successfully:', data.id);
     return data;
   },
 
