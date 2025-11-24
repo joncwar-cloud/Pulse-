@@ -71,7 +71,7 @@ export default function ProfileSetupScreen() {
     try {
       const finalAvatar = avatarUri || selectedAvatar;
       
-      const { data: existingProfile } = await authService.getUserProfile(supabaseUser.id);
+      const existingProfile = await authService.getUserProfile(supabaseUser.id);
       
       if (existingProfile) {
         await authService.updateUserProfile(supabaseUser.id, {
