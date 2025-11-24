@@ -156,18 +156,26 @@ export const [UserProvider, useUser] = createContextHook(() => {
 
   const saveUserMutation = useMutation({
     mutationFn: async (updates: Partial<UserProfile>) => {
-      const userId = user?.id || supabaseUser?.id;
+      let userId = user?.id || supabaseUser?.id;
+      
       if (!userId) {
-        console.error('[UserContext] No user ID available for update');
+        console.log('[UserContext] No cached user ID, fetching fresh session');
+        const session = await authService.getSession();
+        userId = session?.user?.id;
+      }
+      
+      if (!userId) {
+        console.error('[UserContext] No user ID available for update after session check');
         console.error('[UserContext] user?.id:', user?.id);
         console.error('[UserContext] supabaseUser?.id:', supabaseUser?.id);
-        throw new Error('No user to update');
+        throw new Error('No authenticated user found. Please sign in again.');
       }
+      
       console.log('[UserContext] Updating profile for user:', userId);
       const updated = await authService.updateUserProfile(userId, {
         username: updates.username,
         display_name: updates.displayName,
-        avatar_url: updates.avatar,
+        avatar: updates.avatar,
         interests: updates.interests,
         date_of_birth: updates.dateOfBirth?.toISOString(),
         is_creator: updates.isCreator,
@@ -179,8 +187,14 @@ export const [UserProvider, useUser] = createContextHook(() => {
 
   const saveOnboardedMutation = useMutation({
     mutationFn: async (value: boolean) => {
-      const userId = user?.id || supabaseUser?.id;
-      if (!userId) throw new Error('No user to update');
+      let userId = user?.id || supabaseUser?.id;
+      
+      if (!userId) {
+        const session = await authService.getSession();
+        userId = session?.user?.id;
+      }
+      
+      if (!userId) throw new Error('No authenticated user found');
       await AsyncStorage.setItem(`${STORAGE_KEY_ONBOARDED}_${userId}`, value.toString());
       return value;
     },

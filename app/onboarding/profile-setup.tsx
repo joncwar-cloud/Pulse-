@@ -104,13 +104,28 @@ export default function ProfileSetupScreen() {
       return;
     }
 
-    if (!supabaseUser?.id) {
+    setLoading(true);
+    
+    let userId = supabaseUser?.id;
+    
+    if (!userId) {
+      console.log('[ProfileSetup] No cached user ID, fetching current session');
+      try {
+        const session = await authService.getSession();
+        userId = session?.user?.id;
+        console.log('[ProfileSetup] Session check - user ID:', userId);
+      } catch (err) {
+        console.error('[ProfileSetup] Error getting session:', err);
+      }
+    }
+    
+    if (!userId) {
       Alert.alert('Error', 'No user session found. Please sign in again.');
+      setLoading(false);
       return;
     }
 
-    setLoading(true);
-    console.log('[ProfileSetup] Creating profile for user:', supabaseUser.id);
+    console.log('[ProfileSetup] Creating profile for user:', userId);
 
     try {
       const finalAvatar = avatarUri || selectedAvatar;
@@ -122,22 +137,26 @@ export default function ProfileSetupScreen() {
       }
       
       try {
-        const existingProfile = await authService.getUserProfile(supabaseUser.id);
+        const existingProfile = await authService.getUserProfile(userId);
         
         if (existingProfile) {
           console.log('[ProfileSetup] Profile exists, updating');
-          await authService.updateUserProfile(supabaseUser.id, {
+          await authService.updateUserProfile(userId, {
             username,
             display_name: displayName,
             avatar: finalAvatar,
           });
         } else {
           console.log('[ProfileSetup] Creating new profile');
+          
+          const session = await authService.getSession();
+          const userEmail = session?.user?.email || '';
+          
           const { data: insertData, error: insertError } = await supabase
             .from('users')
             .insert([{
-              id: supabaseUser.id,
-              email: supabaseUser.email,
+              id: userId,
+              email: userEmail,
               username,
               display_name: displayName,
               avatar: finalAvatar,
