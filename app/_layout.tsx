@@ -9,6 +9,7 @@ import { UserProvider } from '@/contexts/UserContext';
 import { LocationFilterProvider } from '@/contexts/LocationFilterContext';
 import { MonetizationProvider } from '@/contexts/MonetizationContext';
 import { CommunityProvider } from '@/contexts/CommunityContext';
+import { NotificationProvider } from '@/contexts/NotificationContext';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { PulseColors } from '@/constants/colors';
 
@@ -72,19 +73,21 @@ export default function RootLayout() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <UserProvider>
-          <MonetizationProvider>
-            <ContentFilterProvider>
-              <LocationFilterProvider>
-                <CommunityProvider>
-                  <GestureHandlerRootView style={{ flex: 1 }}>
-                    <RootLayoutNav />
-                  </GestureHandlerRootView>
-                </CommunityProvider>
-              </LocationFilterProvider>
-            </ContentFilterProvider>
-          </MonetizationProvider>
-        </UserProvider>
+        <NotificationProvider>
+          <UserProvider>
+            <MonetizationProvider>
+              <ContentFilterProvider>
+                <LocationFilterProvider>
+                  <CommunityProvider>
+                    <GestureHandlerRootView style={{ flex: 1 }}>
+                      <RootLayoutNav />
+                    </GestureHandlerRootView>
+                  </CommunityProvider>
+                </LocationFilterProvider>
+              </ContentFilterProvider>
+            </MonetizationProvider>
+          </UserProvider>
+        </NotificationProvider>
       </QueryClientProvider>
     </ErrorBoundary>
   );

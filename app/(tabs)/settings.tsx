@@ -31,6 +31,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useContentFilters } from '@/contexts/ContentFilterContext';
 import { useUser } from '@/contexts/UserContext';
 import { useMonetization } from '@/contexts/MonetizationContext';
+import { useNotifications } from '@/contexts/NotificationContext';
 import { PulseColors } from '@/constants/colors';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -42,6 +43,7 @@ export default function ProfileScreen() {
   const { filters, toggleNSFW, toggleBrainrot, toggleChildrenMode } = useContentFilters();
   const { user, signOut } = useUser();
   const { wallet, subscription, earnings, isPremium, upgradeSubscription, purchaseCoins } = useMonetization();
+  const { pushToken, notificationPermission, requestPermission, sendLocalNotification, badgeCount, clearBadgeCount } = useNotifications();
 
   const canAccessCreatorDashboard = user && user.followers >= 1000;
 
@@ -383,6 +385,75 @@ export default function ProfileScreen() {
             )}
           </View>
         )}
+
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Bell size={20} color={PulseColors.dark.accent} />
+            <Text style={styles.sectionTitle}>Push Notifications</Text>
+          </View>
+
+          <View style={styles.notificationCard}>
+            <Text style={styles.notificationLabel}>Permission Status</Text>
+            <Text style={styles.notificationStatus}>
+              {notificationPermission?.granted ? '✓ Enabled' : '✗ Disabled'}
+            </Text>
+            
+            {badgeCount > 0 && (
+              <View style={styles.badgeInfo}>
+                <Text style={styles.badgeInfoText}>
+                  You have {badgeCount} unread notification{badgeCount > 1 ? 's' : ''}
+                </Text>
+                <TouchableOpacity onPress={clearBadgeCount} style={styles.clearBadgeButton}>
+                  <Text style={styles.clearBadgeText}>Clear Badge</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {!notificationPermission?.granted && (
+              <TouchableOpacity
+                style={styles.enableNotificationsButton}
+                onPress={async () => {
+                  const granted = await requestPermission();
+                  if (granted) {
+                    Alert.alert(
+                      'Success!',
+                      'Push notifications are now enabled. You\'ll receive notifications for likes, comments, and more.',
+                      [{ text: 'OK' }]
+                    );
+                  } else {
+                    Alert.alert(
+                      'Permission Denied',
+                      'Please enable notifications in your device settings to receive push notifications.',
+                      [{ text: 'OK' }]
+                    );
+                  }
+                }}
+              >
+                <Bell size={20} color={PulseColors.dark.background} />
+                <Text style={styles.enableNotificationsButtonText}>Enable Push Notifications</Text>
+              </TouchableOpacity>
+            )}
+
+            {notificationPermission?.granted && pushToken && (
+              <View style={styles.notificationTestSection}>
+                <Text style={styles.notificationTestLabel}>Test Notifications</Text>
+                <TouchableOpacity
+                  style={styles.testNotificationButton}
+                  onPress={() => {
+                    sendLocalNotification(
+                      'Test Notification',
+                      'This is a test notification from Pulse!',
+                      { test: true }
+                    );
+                    Alert.alert('Sent!', 'Check your notifications.');
+                  }}
+                >
+                  <Text style={styles.testNotificationButtonText}>Send Test Notification</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </View>
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -982,5 +1053,85 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700' as const,
     color: '#FFFFFF',
+  },
+  notificationCard: {
+    backgroundColor: PulseColors.dark.surface,
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: PulseColors.dark.border,
+    gap: 16,
+  },
+  notificationLabel: {
+    fontSize: 14,
+    color: PulseColors.dark.textSecondary,
+    fontWeight: '600' as const,
+  },
+  notificationStatus: {
+    fontSize: 18,
+    fontWeight: '700' as const,
+    color: PulseColors.dark.text,
+  },
+  badgeInfo: {
+    backgroundColor: 'rgba(255, 0, 87, 0.1)',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 0, 87, 0.2)',
+  },
+  badgeInfoText: {
+    fontSize: 14,
+    color: PulseColors.dark.text,
+    marginBottom: 8,
+  },
+  clearBadgeButton: {
+    alignSelf: 'flex-start' as const,
+  },
+  clearBadgeText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: PulseColors.dark.accent,
+  },
+  enableNotificationsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: PulseColors.dark.accent,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+  },
+  enableNotificationsButtonText: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: PulseColors.dark.background,
+  },
+  notificationTestSection: {
+    backgroundColor: 'rgba(0, 229, 255, 0.1)',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 229, 255, 0.2)',
+    gap: 12,
+  },
+  notificationTestLabel: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: PulseColors.dark.secondaryLight,
+  },
+  testNotificationButton: {
+    backgroundColor: PulseColors.dark.surface,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: PulseColors.dark.border,
+  },
+  testNotificationButtonText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: PulseColors.dark.text,
+    textAlign: 'center' as const,
   },
 });
