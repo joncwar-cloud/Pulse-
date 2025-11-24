@@ -19,6 +19,10 @@ export const authService = {
       password,
       options: {
         emailRedirectTo: Linking.createURL(''),
+        data: {
+          username: userData.username,
+          display_name: userData.display_name,
+        },
       },
     });
 
@@ -32,17 +36,16 @@ export const authService = {
     console.log('[AuthService] Session:', authData.session ? 'Active' : 'Pending email confirmation');
     
     if (!authData.session) {
-      console.log('[AuthService] No session - email confirmation required');
-      return { user: authData.user, profile: null, requiresConfirmation: true };
+      console.log('[AuthService] No session - email confirmation may be required');
+    } else {
+      console.log('[AuthService] Session active, creating profile');
+      console.log('[AuthService] Session access token:', authData.session.access_token ? 'Present' : 'Missing');
+      
+      await supabase.auth.setSession({
+        access_token: authData.session.access_token,
+        refresh_token: authData.session.refresh_token,
+      });
     }
-
-    console.log('[AuthService] Session active, creating profile');
-    console.log('[AuthService] Session access token:', authData.session.access_token ? 'Present' : 'Missing');
-    
-    await supabase.auth.setSession({
-      access_token: authData.session.access_token,
-      refresh_token: authData.session.refresh_token,
-    });
     
     await new Promise(resolve => setTimeout(resolve, 100));
     
@@ -80,7 +83,7 @@ export const authService = {
     }
     
     console.log('[AuthService] User created successfully');
-    return { user: authData.user, profile: user, requiresConfirmation: false };
+    return { user: authData.user, profile: user };
   },
 
   async signIn(email: string, password: string) {
@@ -243,11 +246,16 @@ export const authService = {
       .from('users')
       .select('*')
       .eq('id', userId)
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error('[AuthService] Get profile error:', JSON.stringify(error, null, 2));
       throw new Error(error.message || 'Failed to get profile');
+    }
+    
+    if (!data) {
+      console.log('[AuthService] No profile found for user:', userId);
+      return null;
     }
     
     console.log('[AuthService] Profile fetched successfully');
@@ -295,7 +303,7 @@ export const authService = {
       .from('users')
       .select('id')
       .eq('id', user.id)
-      .single();
+      .maybeSingle();
 
     if (existingProfile) {
       console.log('[AuthService] User profile already exists');

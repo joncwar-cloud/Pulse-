@@ -82,25 +82,17 @@ export default function AuthScreen() {
         const result = await authService.signUp(email, password, profileData);
         console.log('[AuthScreen] Sign up successful');
         
-        if (result.requiresConfirmation) {
-          Alert.alert(
-            'Check Your Email!',
-            'We\'ve sent you a confirmation email. Please verify your account before signing in.',
-            [{ text: 'OK', onPress: () => setMode('signin') }]
-          );
-        } else {
-          Alert.alert(
-            'Success!',
-            'Account created successfully!',
-            [{ 
-              text: 'OK', 
-              onPress: () => {
-                refreshUser();
-                router.replace('/(tabs)');
-              }
-            }]
-          );
-        }
+        Alert.alert(
+          'Success!',
+          'Account created successfully!',
+          [{ 
+            text: 'OK', 
+            onPress: async () => {
+              await refreshUser();
+              router.replace('/(tabs)');
+            }
+          }]
+        );
       }
     } catch (err: any) {
       const errorMessage = err?.message || 'Authentication failed. Please try again.';

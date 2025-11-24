@@ -26,30 +26,36 @@ export const [UserProvider, useUser] = createContextHook(() => {
         try {
           const profile = await authService.getUserProfile(session.user.id);
           console.log('[UserContext] Profile loaded:', profile);
-          const userProfile: UserProfile = {
-            id: profile.id,
-            username: profile.username,
-            displayName: profile.display_name,
-            email: profile.email,
-            avatar: profile.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.username}`,
-            verified: profile.verified || false,
-            isPremium: profile.is_premium || false,
-            authProvider: (profile.auth_provider || 'email') as AuthProvider,
-            interests: profile.interests || [],
-            following: profile.following_count || 0,
-            followers: profile.followers_count || 0,
-            posts: profile.posts_count || 0,
-            dateOfBirth: profile.date_of_birth ? new Date(profile.date_of_birth) : undefined,
-            isCreator: profile.is_creator || false,
-            creatorTier: profile.creator_tier || 'basic',
-            walletBalance: profile.wallet_balance || 0,
-            lifetimeEarnings: profile.lifetime_earnings || 0,
-            subscriberCount: profile.subscriber_count || 0,
-            monthlyRevenue: profile.monthly_revenue || 0,
-            followingUsers: [],
-            blockedUsers: [],
-          };
-          setUser(userProfile);
+          
+          if (profile) {
+            const userProfile: UserProfile = {
+              id: profile.id,
+              username: profile.username,
+              displayName: profile.display_name,
+              email: profile.email,
+              avatar: profile.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.username}`,
+              verified: profile.verified || false,
+              isPremium: profile.is_premium || false,
+              authProvider: (profile.auth_provider || 'email') as AuthProvider,
+              interests: profile.interests || [],
+              following: profile.following || 0,
+              followers: profile.followers || 0,
+              posts: profile.posts || 0,
+              dateOfBirth: profile.date_of_birth ? new Date(profile.date_of_birth) : undefined,
+              isCreator: profile.is_creator || false,
+              creatorTier: profile.creator_tier || 'basic',
+              walletBalance: profile.wallet_balance || 0,
+              lifetimeEarnings: profile.lifetime_earnings || 0,
+              subscriberCount: profile.subscriber_count || 0,
+              monthlyRevenue: profile.monthly_revenue || 0,
+              followingUsers: [],
+              blockedUsers: [],
+            };
+            setUser(userProfile);
+          } else {
+            console.log('[UserContext] No profile found, user needs to complete setup');
+            setUser(null);
+          }
         } catch (error: any) {
           const errorMessage = error?.message || 'Failed to load profile';
           console.error('[UserContext] Error loading profile:', errorMessage, error);
@@ -68,33 +74,40 @@ export const [UserProvider, useUser] = createContextHook(() => {
           setSupabaseUser(session.user);
           try {
             const profile = await authService.getUserProfile(session.user.id);
-            const userProfile: UserProfile = {
-              id: profile.id,
-              username: profile.username,
-              displayName: profile.display_name,
-              email: profile.email,
-              avatar: profile.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.username}`,
-              verified: profile.verified || false,
-              isPremium: profile.is_premium || false,
-              authProvider: (profile.auth_provider || 'email') as AuthProvider,
-              interests: profile.interests || [],
-              following: profile.following_count || 0,
-              followers: profile.followers_count || 0,
-              posts: profile.posts_count || 0,
-              dateOfBirth: profile.date_of_birth ? new Date(profile.date_of_birth) : undefined,
-              isCreator: profile.is_creator || false,
-              creatorTier: profile.creator_tier || 'basic',
-              walletBalance: profile.wallet_balance || 0,
-              lifetimeEarnings: profile.lifetime_earnings || 0,
-              subscriberCount: profile.subscriber_count || 0,
-              monthlyRevenue: profile.monthly_revenue || 0,
-              followingUsers: [],
-              blockedUsers: [],
-            };
-            setUser(userProfile);
+            
+            if (profile) {
+              const userProfile: UserProfile = {
+                id: profile.id,
+                username: profile.username,
+                displayName: profile.display_name,
+                email: profile.email,
+                avatar: profile.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.username}`,
+                verified: profile.verified || false,
+                isPremium: profile.is_premium || false,
+                authProvider: (profile.auth_provider || 'email') as AuthProvider,
+                interests: profile.interests || [],
+                following: profile.following || 0,
+                followers: profile.followers || 0,
+                posts: profile.posts || 0,
+                dateOfBirth: profile.date_of_birth ? new Date(profile.date_of_birth) : undefined,
+                isCreator: profile.is_creator || false,
+                creatorTier: profile.creator_tier || 'basic',
+                walletBalance: profile.wallet_balance || 0,
+                lifetimeEarnings: profile.lifetime_earnings || 0,
+                subscriberCount: profile.subscriber_count || 0,
+                monthlyRevenue: profile.monthly_revenue || 0,
+                followingUsers: [],
+                blockedUsers: [],
+              };
+              setUser(userProfile);
+            } else {
+              console.log('[UserContext] No profile found in auth state change');
+              setUser(null);
+            }
           } catch (error: any) {
             const errorMessage = error?.message || 'Failed to load profile';
             console.error('[UserContext] Error loading profile:', errorMessage, error);
+            setUser(null);
           }
         } else {
           setUser(null);
@@ -166,30 +179,35 @@ export const [UserProvider, useUser] = createContextHook(() => {
       const session = await authService.getSession();
       if (session?.user) {
         const profile = await authService.getUserProfile(session.user.id);
-        const userProfile: UserProfile = {
-          id: profile.id,
-          username: profile.username,
-          displayName: profile.display_name,
-          email: profile.email,
-          avatar: profile.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.username}`,
-          verified: profile.verified || false,
-          isPremium: profile.is_premium || false,
-          authProvider: (profile.auth_provider || 'email') as AuthProvider,
-          interests: profile.interests || [],
-          following: profile.following_count || 0,
-          followers: profile.followers_count || 0,
-          posts: profile.posts_count || 0,
-          dateOfBirth: profile.date_of_birth ? new Date(profile.date_of_birth) : undefined,
-          isCreator: profile.is_creator || false,
-          creatorTier: profile.creator_tier || 'basic',
-          walletBalance: profile.wallet_balance || 0,
-          lifetimeEarnings: profile.lifetime_earnings || 0,
-          subscriberCount: profile.subscriber_count || 0,
-          monthlyRevenue: profile.monthly_revenue || 0,
-          followingUsers: [],
-          blockedUsers: [],
-        };
-        setUser(userProfile);
+        
+        if (profile) {
+          const userProfile: UserProfile = {
+            id: profile.id,
+            username: profile.username,
+            displayName: profile.display_name,
+            email: profile.email,
+            avatar: profile.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.username}`,
+            verified: profile.verified || false,
+            isPremium: profile.is_premium || false,
+            authProvider: (profile.auth_provider || 'email') as AuthProvider,
+            interests: profile.interests || [],
+            following: profile.following || 0,
+            followers: profile.followers || 0,
+            posts: profile.posts || 0,
+            dateOfBirth: profile.date_of_birth ? new Date(profile.date_of_birth) : undefined,
+            isCreator: profile.is_creator || false,
+            creatorTier: profile.creator_tier || 'basic',
+            walletBalance: profile.wallet_balance || 0,
+            lifetimeEarnings: profile.lifetime_earnings || 0,
+            subscriberCount: profile.subscriber_count || 0,
+            monthlyRevenue: profile.monthly_revenue || 0,
+            followingUsers: [],
+            blockedUsers: [],
+          };
+          setUser(userProfile);
+        } else {
+          setUser(null);
+        }
       }
     } catch (error: any) {
       const errorMessage = error?.message || 'Failed to refresh user';
