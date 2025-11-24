@@ -1,6 +1,6 @@
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { ChevronRight, Camera, User, Check } from 'lucide-react-native';
-import React, { useState } from 'react';
+import { ChevronRight, Camera, User, Check, CheckCircle, AlertCircle } from 'lucide-react-native';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
@@ -35,10 +35,54 @@ export default function ProfileSetupScreen() {
   const [selectedAvatar, setSelectedAvatar] = useState<string>(AVATAR_PRESETS[0]);
   const [usernameError, setUsernameError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [checkingUsername, setCheckingUsername] = useState(false);
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+
+  const checkUsernameAvailability = useCallback(async (username: string) => {
+    if (username.length < 3) {
+      setUsernameAvailable(null);
+      return;
+    }
+
+    setCheckingUsername(true);
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('id')
+        .eq('username', username)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (data && data.id !== supabaseUser?.id) {
+        setUsernameAvailable(false);
+        setUsernameError('This username is already taken');
+      } else {
+        setUsernameAvailable(true);
+        setUsernameError('');
+      }
+    } catch (err) {
+      console.error('[ProfileSetup] Username check error:', err);
+      setUsernameAvailable(null);
+    } finally {
+      setCheckingUsername(false);
+    }
+  }, [supabaseUser?.id]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (username.length >= 3) {
+        checkUsernameAvailability(username);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [username, checkUsernameAvailability]);
 
   const validateUsername = (text: string) => {
     const sanitized = text.toLowerCase().replace(/[^a-z0-9_]/g, '');
     setUsername(sanitized);
+    setUsernameAvailable(null);
     
     if (sanitized.length < 3 && sanitized.length > 0) {
       setUsernameError('Username must be at least 3 characters');
@@ -71,13 +115,7 @@ export default function ProfileSetupScreen() {
     try {
       const finalAvatar = avatarUri || selectedAvatar;
       
-      const { data: usernameCheck } = await supabase
-        .from('users')
-        .select('id')
-        .eq('username', username)
-        .maybeSingle();
-      
-      if (usernameCheck) {
+      if (usernameAvailable === false) {
         Alert.alert('Username Taken', 'This username is already taken. Please choose another.');
         setLoading(false);
         return;
@@ -86,13 +124,15 @@ export default function ProfileSetupScreen() {
       const existingProfile = await authService.getUserProfile(supabaseUser.id);
       
       if (existingProfile) {
+        console.log('[ProfileSetup] Profile exists, updating');
         await authService.updateUserProfile(supabaseUser.id, {
           username,
           display_name: displayName,
           avatar: finalAvatar,
         });
       } else {
-        const { error } = await supabase
+        console.log('[ProfileSetup] Creating new profile');
+        const insertResult = await supabase
           .from('users')
           .insert([{
             id: supabaseUser.id,
@@ -101,9 +141,16 @@ export default function ProfileSetupScreen() {
             display_name: displayName,
             avatar: finalAvatar,
             created_at: new Date().toISOString(),
-          }]);
+          }])
+          .select()
+          .single();
         
-        if (error) throw error;
+        if (insertResult.error) {
+          console.error('[ProfileSetup] Insert error:', insertResult.error);
+          throw insertResult.error;
+        }
+        
+        console.log('[ProfileSetup] Profile created:', insertResult.data);
       }
 
       console.log('[ProfileSetup] Profile saved, moving to interests');
@@ -118,7 +165,19 @@ export default function ProfileSetupScreen() {
       });
     } catch (error: any) {
       console.error('[ProfileSetup] Error saving profile:', error);
-      Alert.alert('Error', error?.message || 'Failed to save profile. Please try again.');
+      console.error('[ProfileSetup] Error details:', JSON.stringify(error, null, 2));
+      
+      let errorMessage = 'Failed to save profile. Please try again.';
+      
+      if (error?.code === '42501') {
+        errorMessage = 'Permission denied. Please contact support or try signing in again.';
+      } else if (error?.code === '23505') {
+        errorMessage = 'This username is already taken. Please choose another.';
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      Alert.alert('Error', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -185,7 +244,7 @@ export default function ProfileSetupScreen() {
     );
   };
 
-  const isValid = username.length >= 3 && displayName.trim().length > 0 && !usernameError;
+  const isValid = username.length >= 3 && displayName.trim().length > 0 && !usernameError && usernameAvailable === true;
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -259,7 +318,7 @@ style={[
           <View style={styles.formSection}>
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Username</Text>
-              <View style={styles.inputContainer}>
+              <View style={[styles.inputContainer, usernameAvailable === false && styles.inputContainerError, usernameAvailable === true && styles.inputContainerSuccess]}>
                 <Text style={styles.inputPrefix}>@</Text>
                 <TextInput
                   style={styles.input}
@@ -272,9 +331,18 @@ autoCapitalize="none"
                   maxLength={20}
                   editable={!loading}
                 />
+                {checkingUsername && <ActivityIndicator size="small" color={PulseColors.dark.accent} />}
+                {!checkingUsername && usernameAvailable === true && username.length >= 3 && (
+                  <CheckCircle size={20} color="#10B981" />
+                )}
+                {!checkingUsername && usernameAvailable === false && (
+                  <AlertCircle size={20} color={PulseColors.dark.accent} />
+                )}
               </View>
               {usernameError ? (
                 <Text style={styles.errorText}>{usernameError}</Text>
+              ) : usernameAvailable === true && username.length >= 3 ? (
+                <Text style={styles.successText}>Username is available!</Text>
               ) : (
                 <Text style={styles.helperText}>Letters, numbers, and underscores only</Text>
               )}
@@ -469,6 +537,17 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: PulseColors.dark.accent,
     fontWeight: '600' as const,
+  },
+  successText: {
+    fontSize: 13,
+    color: '#10B981',
+    fontWeight: '600' as const,
+  },
+  inputContainerError: {
+    borderColor: PulseColors.dark.accent,
+  },
+  inputContainerSuccess: {
+    borderColor: '#10B981',
   },
   footer: {
     paddingHorizontal: 24,
