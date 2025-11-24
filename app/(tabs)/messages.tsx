@@ -73,8 +73,7 @@ export default function MessagesScreen() {
                 ]} 
                 numberOfLines={1}
               >
-                {conversation.lastMessage.senderId === 'me' && 'You: '}
-                {conversation.lastMessage.content}
+                {conversation.lastMessage.senderId === 'me' ? 'You: ' : ''}{conversation.lastMessage.content}
               </Text>
             </View>
           </TouchableOpacity>
