@@ -26,14 +26,31 @@ export default function InterestsScreen() {
   };
 
   const handleContinue = () => {
-    if (selectedInterests.length === 0) return;
-    router.push({
-      pathname: '/onboarding/age-verification',
-      params: { 
-        ...params,
-        interests: JSON.stringify(selectedInterests) 
-      },
-    });
+    console.log('[Interests] Continue button pressed');
+    console.log('[Interests] Selected interests:', selectedInterests);
+    console.log('[Interests] Selected count:', selectedInterests.length);
+    
+    if (selectedInterests.length < 3) {
+      console.log('[Interests] Not enough interests selected');
+      return;
+    }
+    
+    try {
+      console.log('[Interests] Navigating to age verification');
+      console.log('[Interests] Current params:', params);
+      
+      router.push({
+        pathname: '/onboarding/age-verification',
+        params: { 
+          ...params,
+          interests: JSON.stringify(selectedInterests) 
+        },
+      });
+      
+      console.log('[Interests] Navigation initiated successfully');
+    } catch (error) {
+      console.error('[Interests] Navigation error:', error);
+    }
   };
 
   return (
@@ -41,7 +58,9 @@ export default function InterestsScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>What are you into?</Text>
         <Text style={styles.subtitle}>
-          Pick at least 3 interests to personalize your feed
+          {selectedInterests.length < 3
+            ? `Pick ${3 - selectedInterests.length} more interest${3 - selectedInterests.length === 1 ? '' : 's'} to continue`
+            : `${selectedInterests.length} interests selected ✓`}
         </Text>
       </View>
 
