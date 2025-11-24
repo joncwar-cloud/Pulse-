@@ -67,7 +67,7 @@ export default function CommunitiesScreen() {
                   {community.description}
                 </Text>
                 <Text style={styles.communityStats}>
-                  {community.memberCount.toLocaleString()} members • {community.category}
+                  {community.memberCount.toLocaleString()} members {' • '} {community.category}
                 </Text>
               </View>
               <TouchableOpacity
