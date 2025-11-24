@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { Heart, MessageCircle, Share2, CheckCircle, Crown, Bookmark, MapPin, DollarSign, Gift } from 'lucide-react-native';
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Pressable, Dimensions, Alert, Modal } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Post } from '@/types';
@@ -24,12 +24,12 @@ export default function PostCard({ post, onPress, isActive }: PostCardProps) {
 
   const tipAmounts = [10, 25, 50, 100, 250, 500];
 
-  const handleLike = () => {
-    setLiked(!liked);
-    setLikeCount(liked ? likeCount - 1 : likeCount + 1);
-  };
+  const handleLike = useCallback(() => {
+    setLiked(prev => !prev);
+    setLikeCount(prev => liked ? prev - 1 : prev + 1);
+  }, [liked]);
 
-  const handleTip = (amount: number) => {
+  const handleTip = useCallback((amount: number) => {
     if (wallet.coins < amount) {
       Alert.alert('Insufficient Coins', `You need ${amount} coins to send this tip. Buy more coins to support creators!`);
       return;
@@ -46,9 +46,9 @@ export default function PostCard({ post, onPress, isActive }: PostCardProps) {
       Alert.alert('Tip Sent!', `You sent ${amount} coins to ${post.user.displayName}`);
       setShowTipModal(false);
     }
-  };
+  }, [wallet.coins, sendTip, post.user.id, post.id, post.user.displayName]);
 
-  const handleSubscribe = () => {
+  const handleSubscribe = useCallback(() => {
     Alert.alert(
       'Subscribe to Creator',
       `Subscribe to ${post.user.displayName} for exclusive content and perks!`,
@@ -66,13 +66,16 @@ export default function PostCard({ post, onPress, isActive }: PostCardProps) {
         },
       ]
     );
-  };
+  }, [spendCoins, post.user.displayName]);
 
-  const formatNumber = (num: number) => {
+  const formatNumber = useCallback((num: number) => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
     if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
     return num.toString();
-  };
+  }, []);
+
+  const formattedLikeCount = useMemo(() => formatNumber(likeCount), [likeCount, formatNumber]);
+  const formattedCommentCount = useMemo(() => formatNumber(post.comments), [post.comments, formatNumber]);
 
 
 
@@ -107,12 +110,12 @@ export default function PostCard({ post, onPress, isActive }: PostCardProps) {
             color={liked ? PulseColors.dark.accent : PulseColors.dark.text}
             fill={liked ? PulseColors.dark.accent : 'transparent'}
           />
-          <Text style={styles.actionCount}>{formatNumber(likeCount)}</Text>
+          <Text style={styles.actionCount}>{formattedLikeCount}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.actionContainer}>
           <MessageCircle size={32} color={PulseColors.dark.text} />
-          <Text style={styles.actionCount}>{formatNumber(post.comments)}</Text>
+          <Text style={styles.actionCount}>{formattedCommentCount}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.actionContainer} onPress={() => setSaved(!saved)}>

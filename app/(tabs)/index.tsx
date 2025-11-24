@@ -1,6 +1,6 @@
 import { Stack, useRouter, Href } from 'expo-router';
 import { Activity, Filter, MapPin, X } from 'lucide-react-native';
-import React, { useMemo, useState, useRef, useCallback, useEffect } from 'react';
+import React, { useMemo, useState, useRef, useCallback, useEffect, memo } from 'react';
 import { View, StyleSheet, Text, FlatList, Dimensions, TouchableOpacity, ScrollView } from 'react-native';
 import PostCard from '@/components/PostCard';
 import NativeAdCard from '@/components/NativeAdCard';
@@ -25,6 +25,9 @@ const CONTENT_TYPE_ICONS: Record<ContentType, string> = {
 type FeedItem = 
   | { type: 'post'; data: Post; id: string }
   | { type: 'ad'; data: Ad; id: string };
+
+const MemoizedPostCard = memo(PostCard);
+const MemoizedNativeAdCard = memo(NativeAdCard);
 
 export default function FeedScreen() {
   const router = useRouter();
@@ -227,9 +230,9 @@ export default function FeedScreen() {
         data={feedItems}
         renderItem={({ item, index }) => {
           if (item.type === 'ad') {
-            return <NativeAdCard ad={item.data} />;
+            return <MemoizedNativeAdCard ad={item.data} />;
           }
-          return <PostCard post={item.data} isActive={index === currentIndex} />;
+          return <MemoizedPostCard post={item.data} isActive={index === currentIndex} />;
         }}
         keyExtractor={(item) => item.id}
         pagingEnabled

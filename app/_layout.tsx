@@ -18,8 +18,14 @@ SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
+      retry: 2,
+      staleTime: 60000,
+      gcTime: 300000,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: true,
+    },
+    mutations: {
       retry: 1,
-      staleTime: 30000,
     },
   },
 });
@@ -72,23 +78,23 @@ export default function RootLayout() {
 
   return (
     <ErrorBoundary>
-      <QueryClientProvider client={queryClient}>
-        <NotificationProvider>
-          <UserProvider>
-            <MonetizationProvider>
-              <ContentFilterProvider>
-                <LocationFilterProvider>
-                  <CommunityProvider>
-                    <GestureHandlerRootView style={{ flex: 1 }}>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <QueryClientProvider client={queryClient}>
+          <NotificationProvider>
+            <UserProvider>
+              <MonetizationProvider>
+                <ContentFilterProvider>
+                  <LocationFilterProvider>
+                    <CommunityProvider>
                       <RootLayoutNav />
-                    </GestureHandlerRootView>
-                  </CommunityProvider>
-                </LocationFilterProvider>
-              </ContentFilterProvider>
-            </MonetizationProvider>
-          </UserProvider>
-        </NotificationProvider>
-      </QueryClientProvider>
+                    </CommunityProvider>
+                  </LocationFilterProvider>
+                </ContentFilterProvider>
+              </MonetizationProvider>
+            </UserProvider>
+          </NotificationProvider>
+        </QueryClientProvider>
+      </GestureHandlerRootView>
     </ErrorBoundary>
   );
 }
