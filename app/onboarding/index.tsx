@@ -11,12 +11,17 @@ export default function WelcomeScreen() {
   const { user, hasOnboarded } = useUser();
 
   useEffect(() => {
-    if (user && hasOnboarded) {
+    console.log('[WelcomeScreen] Checking auth state - user:', !!user, 'hasOnboarded:', hasOnboarded);
+    if (user && hasOnboarded === true) {
       console.log('[WelcomeScreen] User authenticated and onboarded, redirecting to tabs');
       router.replace('/(tabs)');
     } else if (user && hasOnboarded === false) {
       console.log('[WelcomeScreen] User authenticated but not onboarded, redirecting to profile setup');
       router.replace('/onboarding/profile-setup');
+    } else if (user && hasOnboarded === undefined) {
+      console.log('[WelcomeScreen] User authenticated, onboarding status loading...');
+    } else {
+      console.log('[WelcomeScreen] No user, showing welcome screen');
     }
   }, [user, hasOnboarded, router]);
 

@@ -19,7 +19,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PulseColors } from '@/constants/colors';
 import { authService } from '@/services/api/auth';
-import { useUser } from '@/contexts/UserContext';
 
 type AuthMode = 'signin' | 'signup';
 
@@ -40,7 +39,6 @@ const AVATAR_PRESETS = [
 
 export default function AuthScreen() {
   const router = useRouter();
-  const { refreshUser } = useUser();
   const [mode, setMode] = useState<AuthMode>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -72,34 +70,32 @@ export default function AuthScreen() {
         await authService.signIn(email, password);
         console.log('[AuthScreen] Sign in successful');
         
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        await refreshUser();
+        await new Promise(resolve => setTimeout(resolve, 500));
         
-        console.log('[AuthScreen] Redirecting to tabs');
-        router.replace('/(tabs)');
+        console.log('[AuthScreen] Redirecting to onboarding to check profile');
+        router.replace('/onboarding');
       } else {
         const profileData = {
           username,
           display_name: displayName,
           avatar_url: avatarUri || selectedPreset,
         };
-        await authService.signUp(email, password, profileData);
+        const result = await authService.signUp(email, password, profileData);
         console.log('[AuthScreen] Sign up successful');
         
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        await refreshUser();
+        if (result.requiresEmailConfirmation) {
+          Alert.alert(
+            'Check Your Email',
+            'Please check your email to verify your account before signing in.',
+            [{ text: 'OK' }]
+          );
+          return;
+        }
         
-        Alert.alert(
-          'Success!',
-          'Account created successfully!',
-          [{ 
-            text: 'OK', 
-            onPress: () => {
-              console.log('[AuthScreen] Redirecting to tabs after signup');
-              router.replace('/(tabs)');
-            }
-          }]
-        );
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        console.log('[AuthScreen] Redirecting to onboarding after signup');
+        router.replace('/onboarding');
       }
     } catch (err: any) {
       const errorMessage = err?.message || 'Authentication failed. Please try again.';
@@ -118,11 +114,10 @@ export default function AuthScreen() {
     try {
       await authService.signInWithGoogle();
       
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      await refreshUser();
+      await new Promise(resolve => setTimeout(resolve, 500));
       
-      console.log('[AuthScreen] Redirecting to tabs after Google sign in');
-      router.replace('/(tabs)');
+      console.log('[AuthScreen] Redirecting to onboarding after Google sign in');
+      router.replace('/onboarding');
     } catch (err: any) {
       const errorMessage = err?.message || 'Google sign in failed. Please try again.';
       console.error('[AuthScreen] Google auth error:', errorMessage, err);
@@ -140,11 +135,10 @@ export default function AuthScreen() {
     try {
       await authService.signInWithFacebook();
       
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      await refreshUser();
+      await new Promise(resolve => setTimeout(resolve, 500));
       
-      console.log('[AuthScreen] Redirecting to tabs after Facebook sign in');
-      router.replace('/(tabs)');
+      console.log('[AuthScreen] Redirecting to onboarding after Facebook sign in');
+      router.replace('/onboarding');
     } catch (err: any) {
       const errorMessage = err?.message || 'Facebook sign in failed. Please try again.';
       console.error('[AuthScreen] Facebook auth error:', errorMessage, err);

@@ -1,6 +1,6 @@
-import { Stack, useRouter, Href } from 'expo-router';
+import { Stack } from 'expo-router';
 import { Activity, Filter, MapPin, X } from 'lucide-react-native';
-import React, { useMemo, useState, useRef, useCallback, useEffect, memo } from 'react';
+import React, { useMemo, useState, useRef, useCallback, memo } from 'react';
 import { View, StyleSheet, Text, FlatList, Dimensions, TouchableOpacity, ScrollView } from 'react-native';
 import PostCard from '@/components/PostCard';
 import NativeAdCard from '@/components/NativeAdCard';
@@ -30,7 +30,6 @@ const MemoizedPostCard = memo(PostCard);
 const MemoizedNativeAdCard = memo(NativeAdCard);
 
 export default function FeedScreen() {
-  const router = useRouter();
   const { filters, toggleContentType } = useContentFilters();
   const { hasOnboarded } = useUser();
   const { selectedLocation, clearLocation } = useLocationFilter();
@@ -41,30 +40,6 @@ export default function FeedScreen() {
   const flatListRef = useRef<FlatList>(null);
 
   const { user, isLoading: userLoading } = useUser();
-
-  useEffect(() => {
-    if (userLoading) {
-      console.log('[FeedScreen] User data still loading...');
-      return;
-    }
-    
-    console.log('[FeedScreen] Auth check - User:', !!user, 'Onboarded:', hasOnboarded);
-    if (!user) {
-      console.log('[FeedScreen] No user after loading complete, redirecting to onboarding');
-      try {
-        router.replace('/onboarding' as Href);
-      } catch (error) {
-        console.error('[FeedScreen] Error redirecting to onboarding:', error);
-      }
-    } else if (hasOnboarded === false) {
-      console.log('[FeedScreen] User exists but not onboarded, redirecting to profile setup');
-      try {
-        router.replace('/onboarding/profile-setup' as Href);
-      } catch (error) {
-        console.error('[FeedScreen] Error redirecting to profile setup:', error);
-      }
-    }
-  }, [user, hasOnboarded, userLoading, router]);
 
   const feedItems = useMemo(() => {
     try {
