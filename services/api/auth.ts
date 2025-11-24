@@ -22,12 +22,12 @@ export const authService = {
     });
 
     if (authError) {
-      console.error('[AuthService] Sign up error:', authError);
-      throw authError;
+      console.error('[AuthService] Sign up error:', JSON.stringify(authError, null, 2));
+      throw new Error(authError.message || 'Sign up failed');
     }
     if (!authData.user) throw new Error('User creation failed');
 
-    console.log('[AuthService] Creating user profile');
+    console.log('[AuthService] Creating user profile for user:', authData.user.id);
     const { data: user, error: userError } = await supabase
       .from('users')
       .insert([{
@@ -40,8 +40,8 @@ export const authService = {
       .single();
 
     if (userError) {
-      console.error('[AuthService] Profile creation error:', userError);
-      throw userError;
+      console.error('[AuthService] Profile creation error:', JSON.stringify(userError, null, 2));
+      throw new Error(userError.message || 'Failed to create user profile');
     }
     
     console.log('[AuthService] User created successfully');
@@ -55,8 +55,8 @@ export const authService = {
       password,
     });
     if (error) {
-      console.error('[AuthService] Sign in error:', error);
-      throw error;
+      console.error('[AuthService] Sign in error:', JSON.stringify(error, null, 2));
+      throw new Error(error.message || 'Sign in failed');
     }
     console.log('[AuthService] Sign in successful');
     return data;
@@ -77,8 +77,8 @@ export const authService = {
       });
 
       if (error) {
-        console.error('[AuthService] Google OAuth error:', error);
-        throw error;
+        console.error('[AuthService] Google OAuth error:', JSON.stringify(error, null, 2));
+        throw new Error(error.message || 'Google OAuth failed');
       }
 
       if (Platform.OS !== 'web' && data?.url) {
@@ -96,16 +96,20 @@ export const authService = {
               refresh_token: params.queryParams.refresh_token as string,
             });
             
-            if (sessionError) throw sessionError;
+            if (sessionError) {
+              console.error('[AuthService] Google session error:', JSON.stringify(sessionError, null, 2));
+              throw new Error(sessionError.message || 'Failed to set session');
+            }
             return sessionData;
           }
         }
       }
 
       return data;
-    } catch (error) {
-      console.error('[AuthService] Google sign in error:', error);
-      throw error;
+    } catch (error: any) {
+      const errorMessage = error?.message || 'Google sign in failed';
+      console.error('[AuthService] Google sign in error:', errorMessage, error);
+      throw new Error(errorMessage);
     }
   },
 
@@ -124,8 +128,8 @@ export const authService = {
       });
 
       if (error) {
-        console.error('[AuthService] Facebook OAuth error:', error);
-        throw error;
+        console.error('[AuthService] Facebook OAuth error:', JSON.stringify(error, null, 2));
+        throw new Error(error.message || 'Facebook OAuth failed');
       }
 
       if (Platform.OS !== 'web' && data?.url) {
@@ -143,16 +147,20 @@ export const authService = {
               refresh_token: params.queryParams.refresh_token as string,
             });
             
-            if (sessionError) throw sessionError;
+            if (sessionError) {
+              console.error('[AuthService] Facebook session error:', JSON.stringify(sessionError, null, 2));
+              throw new Error(sessionError.message || 'Failed to set session');
+            }
             return sessionData;
           }
         }
       }
 
       return data;
-    } catch (error) {
-      console.error('[AuthService] Facebook sign in error:', error);
-      throw error;
+    } catch (error: any) {
+      const errorMessage = error?.message || 'Facebook sign in failed';
+      console.error('[AuthService] Facebook sign in error:', errorMessage, error);
+      throw new Error(errorMessage);
     }
   },
 
@@ -160,8 +168,8 @@ export const authService = {
     console.log('[AuthService] Signing out user');
     const { error } = await supabase.auth.signOut();
     if (error) {
-      console.error('[AuthService] Sign out error:', error);
-      throw error;
+      console.error('[AuthService] Sign out error:', JSON.stringify(error, null, 2));
+      throw new Error(error.message || 'Sign out failed');
     }
     console.log('[AuthService] Sign out successful');
   },
@@ -169,8 +177,8 @@ export const authService = {
   async getSession() {
     const { data: { session }, error } = await supabase.auth.getSession();
     if (error) {
-      console.error('[AuthService] Get session error:', error);
-      throw error;
+      console.error('[AuthService] Get session error:', JSON.stringify(error, null, 2));
+      throw new Error(error.message || 'Failed to get session');
     }
     return session;
   },
@@ -178,8 +186,8 @@ export const authService = {
   async getCurrentUser() {
     const { data: { user }, error } = await supabase.auth.getUser();
     if (error) {
-      console.error('[AuthService] Get user error:', error);
-      throw error;
+      console.error('[AuthService] Get user error:', JSON.stringify(error, null, 2));
+      throw new Error(error.message || 'Failed to get user');
     }
     return user;
   },
@@ -193,8 +201,8 @@ export const authService = {
       .single();
 
     if (error) {
-      console.error('[AuthService] Get profile error:', error);
-      throw error;
+      console.error('[AuthService] Get profile error:', JSON.stringify(error, null, 2));
+      throw new Error(error.message || 'Failed to get profile');
     }
     
     console.log('[AuthService] Profile fetched successfully');
@@ -211,8 +219,8 @@ export const authService = {
       .single();
 
     if (error) {
-      console.error('[AuthService] Update profile error:', error);
-      throw error;
+      console.error('[AuthService] Update profile error:', JSON.stringify(error, null, 2));
+      throw new Error(error.message || 'Failed to update profile');
     }
     
     console.log('[AuthService] Profile updated successfully');
@@ -225,8 +233,8 @@ export const authService = {
       redirectTo: Linking.createURL('reset-password'),
     });
     if (error) {
-      console.error('[AuthService] Reset password error:', error);
-      throw error;
+      console.error('[AuthService] Reset password error:', JSON.stringify(error, null, 2));
+      throw new Error(error.message || 'Failed to reset password');
     }
     console.log('[AuthService] Password reset email sent');
   },

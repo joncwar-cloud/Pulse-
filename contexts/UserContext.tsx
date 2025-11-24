@@ -50,8 +50,9 @@ export const [UserProvider, useUser] = createContextHook(() => {
             blockedUsers: [],
           };
           setUser(userProfile);
-        } catch (error) {
-          console.error('[UserContext] Error loading profile:', error);
+        } catch (error: any) {
+          const errorMessage = error?.message || 'Failed to load profile';
+          console.error('[UserContext] Error loading profile:', errorMessage, error);
           setUser(null);
         }
       } else {
@@ -91,8 +92,9 @@ export const [UserProvider, useUser] = createContextHook(() => {
               blockedUsers: [],
             };
             setUser(userProfile);
-          } catch (error) {
-            console.error('[UserContext] Error loading profile:', error);
+          } catch (error: any) {
+            const errorMessage = error?.message || 'Failed to load profile';
+            console.error('[UserContext] Error loading profile:', errorMessage, error);
           }
         } else {
           setUser(null);
@@ -189,8 +191,9 @@ export const [UserProvider, useUser] = createContextHook(() => {
         };
         setUser(userProfile);
       }
-    } catch (error) {
-      console.error('[UserContext] Error refreshing user:', error);
+    } catch (error: any) {
+      const errorMessage = error?.message || 'Failed to refresh user';
+      console.error('[UserContext] Error refreshing user:', errorMessage, error);
     }
   };
 
@@ -201,8 +204,10 @@ export const [UserProvider, useUser] = createContextHook(() => {
       setUser(null);
       setSupabaseUser(null);
       queryClient.clear();
-    } catch (error) {
-      console.error('[UserContext] Error signing out:', error);
+    } catch (error: any) {
+      const errorMessage = error?.message || 'Failed to sign out';
+      console.error('[UserContext] Error signing out:', errorMessage, error);
+      throw new Error(errorMessage);
     }
   };
 
@@ -214,9 +219,11 @@ export const [UserProvider, useUser] = createContextHook(() => {
     try {
       await saveUserMutation.mutateAsync(updates);
       await refreshUser();
-    } catch (error) {
-      console.error('[UserContext] Error updating profile:', error);
+    } catch (error: any) {
+      const errorMessage = error?.message || 'Failed to update profile';
+      console.error('[UserContext] Error updating profile:', errorMessage, error);
       setUser(user);
+      throw new Error(errorMessage);
     }
   };
 

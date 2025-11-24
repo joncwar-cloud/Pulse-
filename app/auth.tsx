@@ -67,8 +67,9 @@ export default function AuthScreen() {
         );
       }
     } catch (err: any) {
-      console.error('[AuthScreen] Auth error:', err);
-      setError(err.message || 'Authentication failed. Please try again.');
+      const errorMessage = err?.message || 'Authentication failed. Please try again.';
+      console.error('[AuthScreen] Auth error:', errorMessage, err);
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -84,8 +85,9 @@ export default function AuthScreen() {
       await refreshUser();
       router.replace('/(tabs)');
     } catch (err: any) {
-      console.error('[AuthScreen] Google auth error:', err);
-      setError(err.message || 'Google sign in failed. Please try again.');
+      const errorMessage = err?.message || 'Google sign in failed. Please try again.';
+      console.error('[AuthScreen] Google auth error:', errorMessage, err);
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -101,8 +103,9 @@ export default function AuthScreen() {
       await refreshUser();
       router.replace('/(tabs)');
     } catch (err: any) {
-      console.error('[AuthScreen] Facebook auth error:', err);
-      setError(err.message || 'Facebook sign in failed. Please try again.');
+      const errorMessage = err?.message || 'Facebook sign in failed. Please try again.';
+      console.error('[AuthScreen] Facebook auth error:', errorMessage, err);
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
