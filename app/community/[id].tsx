@@ -1,7 +1,8 @@
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
-import { ArrowLeft, Users, TrendingUp, MessageCircle, Shield, Sparkles, Zap, Loader } from 'lucide-react-native';
+import { ArrowLeft, Users, TrendingUp, MessageCircle, Shield, Sparkles, Zap, Loader, Heart, Share2, CheckCircle, Crown } from 'lucide-react-native';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions, ActivityIndicator, FlatList, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, FlatList, ScrollView } from 'react-native';
+import { Image } from 'expo-image';
 import { useMutation } from '@tanstack/react-query';
 import { generateText } from '@rork-ai/toolkit-sdk';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,7 +13,7 @@ import { mockPosts } from '@/mocks/posts';
 import { Post } from '@/types';
 import PostCard from '@/components/PostCard';
 
-const { width, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
 
 interface AIModeratorInfo {
   name: string;
@@ -38,7 +39,7 @@ export default function CommunityDetailScreen() {
   const { communities, joinCommunity, leaveCommunity } = useCommunities();
   const [activeTab, setActiveTab] = useState<TabType>('posts');
   const [aiGeneratedPosts, setAiGeneratedPosts] = useState<Post[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [liked, setLiked] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const autoGenerateIntervalRef = useRef<number | null>(null);
 
@@ -73,6 +74,24 @@ export default function CommunityDetailScreen() {
 
   const handlePostPress = (post: Post) => {
     console.log('[Community] Post pressed:', post.id);
+  };
+
+  const handleLike = () => {
+    setLiked(prev => !prev);
+  };
+
+  const handleShare = async () => {
+    console.log('[Community] Share pressed');
+  };
+
+  const handleProfilePress = () => {
+    console.log('[Community] Profile pressed');
+  };
+
+  const formatNumber = (num: number) => {
+    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
+    if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
+    return num.toString();
   };
 
   const generateAIPostMutation = useMutation({
@@ -169,49 +188,86 @@ Write the post content only, no title needed:`;
     );
   }
 
+  const renderTextPost = (post: Post) => (
+    <View style={styles.textPostCard}>
+      <TouchableOpacity style={styles.textPostHeader} onPress={handleProfilePress}>
+        <Image source={{ uri: post.user.avatar }} style={styles.textPostAvatar} />
+        <View style={styles.textPostUserInfo}>
+          <View style={styles.textPostNameRow}>
+            <Text style={styles.textPostDisplayName}>{post.user.displayName}</Text>
+            {post.user.verified && <CheckCircle size={14} color={PulseColors.dark.secondary} fill={PulseColors.dark.secondary} />}
+            {post.user.isPremium && <Crown size={14} color={PulseColors.dark.warning} fill={PulseColors.dark.warning} />}
+          </View>
+          <Text style={styles.textPostUsername}>@{post.user.username}</Text>
+        </View>
+      </TouchableOpacity>
+      
+      <Text style={styles.textPostContent}>{post.content}</Text>
+      
+      {post.tags && post.tags.length > 0 && (
+        <View style={styles.textPostTags}>
+          {post.tags.slice(0, 3).map((tag) => (
+            <Text key={tag} style={styles.textPostTag}>#{tag}</Text>
+          ))}
+        </View>
+      )}
+      
+      <View style={styles.textPostActions}>
+        <TouchableOpacity style={styles.textPostAction} onPress={handleLike}>
+          <Heart
+            size={20}
+            color={liked ? PulseColors.dark.accent : PulseColors.dark.textSecondary}
+            fill={liked ? PulseColors.dark.accent : 'transparent'}
+          />
+          <Text style={styles.textPostActionText}>{formatNumber(post.votes)}</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity style={styles.textPostAction}>
+          <MessageCircle size={20} color={PulseColors.dark.textSecondary} />
+          <Text style={styles.textPostActionText}>{formatNumber(post.comments)}</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity style={styles.textPostAction} onPress={handleShare}>
+          <Share2 size={20} color={PulseColors.dark.textSecondary} />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
       
-      {activeTab === 'about' && (
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.headerButton} onPress={() => router.back()}>
-            <ArrowLeft size={24} color={PulseColors.dark.text} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle} numberOfLines={1}>{community.name}</Text>
-          <View style={styles.headerButton} />
-        </View>
-      )}
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.headerButton} onPress={() => router.back()}>
+          <ArrowLeft size={24} color={PulseColors.dark.text} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle} numberOfLines={1}>{community.name}</Text>
+        <View style={styles.headerButton} />
+      </View>
 
       {activeTab === 'posts' ? (
         <FlatList
           ref={flatListRef}
           data={communityPosts}
           keyExtractor={(item) => item.id}
-          renderItem={({ item, index }) => (
-            <PostCard
-              post={item}
-              onPress={() => handlePostPress(item)}
-              isActive={index === currentIndex}
-            />
+          renderItem={({ item }) => (
+            item.type === 'text' ? renderTextPost(item) : (
+              <PostCard
+                post={item}
+                onPress={() => handlePostPress(item)}
+                isActive={false}
+              />
+            )
           )}
-          pagingEnabled
           showsVerticalScrollIndicator={false}
-          snapToInterval={SCREEN_HEIGHT}
-          snapToAlignment="start"
-          decelerationRate="fast"
-          onMomentumScrollEnd={(event) => {
-            const index = Math.round(event.nativeEvent.contentOffset.y / SCREEN_HEIGHT);
-            setCurrentIndex(index);
-          }}
-          ListHeaderComponent={
-            communityPosts.length === 0 ? (
-              <View style={[styles.emptyContainer, { height: SCREEN_HEIGHT }]}>
-                <MessageCircle size={48} color={PulseColors.dark.textSecondary} />
-                <Text style={styles.emptyText}>No posts yet</Text>
-                <Text style={styles.emptySubtext}>AI moderator will create posts automatically!</Text>
-              </View>
-            ) : null
+          contentContainerStyle={styles.postsListContent}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <MessageCircle size={48} color={PulseColors.dark.textSecondary} />
+              <Text style={styles.emptyText}>No posts yet</Text>
+              <Text style={styles.emptySubtext}>AI moderator will create posts automatically!</Text>
+            </View>
           }
         />
       ) : (
@@ -291,18 +347,18 @@ Write the post content only, no title needed:`;
 
         <View style={styles.tabsContainer}>
           <TouchableOpacity
-            style={[styles.tab, activeTab === 'posts' && styles.activeTab]}
+            style={[styles.tab, false && styles.activeTab]}
             onPress={() => setActiveTab('posts')}
           >
-            <Text style={[styles.tabText, activeTab === 'posts' && styles.activeTabText]}>
+            <Text style={[styles.tabText, false && styles.activeTabText]}>
               Posts
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.tab, activeTab === 'about' && styles.activeTab]}
+            style={[styles.tab, true && styles.activeTab]}
             onPress={() => setActiveTab('about')}
           >
-            <Text style={[styles.tabText, activeTab === 'about' && styles.activeTabText]}>
+            <Text style={[styles.tabText, true && styles.activeTabText]}>
               About
             </Text>
           </TouchableOpacity>
@@ -587,10 +643,14 @@ const styles = StyleSheet.create({
     fontWeight: '800' as const,
   },
 
+  postsListContent: {
+    paddingBottom: 20,
+  },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 32,
+    paddingVertical: 60,
     gap: 12,
   },
   emptyText: {
@@ -654,5 +714,74 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
     color: PulseColors.dark.text,
   },
-
+  textPostCard: {
+    backgroundColor: PulseColors.dark.surface,
+    marginHorizontal: 0,
+    marginBottom: 1,
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: PulseColors.dark.border,
+  },
+  textPostHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+    gap: 12,
+  },
+  textPostAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
+  textPostUserInfo: {
+    flex: 1,
+  },
+  textPostNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 2,
+  },
+  textPostDisplayName: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+    color: PulseColors.dark.text,
+  },
+  textPostUsername: {
+    fontSize: 14,
+    color: PulseColors.dark.textSecondary,
+  },
+  textPostContent: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: PulseColors.dark.text,
+    marginBottom: 12,
+  },
+  textPostTags: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
+  },
+  textPostTag: {
+    fontSize: 14,
+    color: PulseColors.dark.accent,
+    fontWeight: '600' as const,
+  },
+  textPostActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 48,
+    paddingTop: 8,
+  },
+  textPostAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  textPostActionText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: PulseColors.dark.textSecondary,
+  },
 });
