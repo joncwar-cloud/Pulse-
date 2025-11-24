@@ -18,11 +18,15 @@ export default function InterestsScreen() {
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
 
   const toggleInterest = (interest: string) => {
-    setSelectedInterests((prev) =>
-      prev.includes(interest)
+    setSelectedInterests((prev) => {
+      const newSelection = prev.includes(interest)
         ? prev.filter((i) => i !== interest)
-        : [...prev, interest]
-    );
+        : [...prev, interest];
+      console.log('[Interests] Interest toggled:', interest);
+      console.log('[Interests] New selection:', newSelection);
+      console.log('[Interests] Count:', newSelection.length);
+      return newSelection;
+    });
   };
 
   const handleContinue = () => {
@@ -110,9 +114,13 @@ export default function InterestsScreen() {
           ]}
           onPress={handleContinue}
           disabled={selectedInterests.length < 3}
+          activeOpacity={selectedInterests.length < 3 ? 1 : 0.7}
         >
-          <Text style={styles.continueButtonText}>Continue</Text>
-          <ChevronRight size={24} color="#FFFFFF" />
+          <Text style={[
+            styles.continueButtonText,
+            selectedInterests.length < 3 && styles.continueButtonTextDisabled
+          ]}>Continue</Text>
+          <ChevronRight size={24} color={selectedInterests.length < 3 ? "#666666" : "#FFFFFF"} />
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -222,5 +230,8 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '700' as const,
     color: '#FFFFFF',
+  },
+  continueButtonTextDisabled: {
+    color: '#666666',
   },
 });
