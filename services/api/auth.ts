@@ -27,8 +27,11 @@ export const authService = {
       throw new Error(authError.message || 'Sign up failed');
     }
     if (!authData.user) throw new Error('User creation failed');
+    if (!authData.session) throw new Error('Session creation failed');
 
+    console.log('[AuthService] User authenticated, session active');
     console.log('[AuthService] Creating user profile for user:', authData.user.id);
+    
     const { data: user, error: userError } = await supabase
       .from('users')
       .insert([{
@@ -46,6 +49,8 @@ export const authService = {
 
     if (userError) {
       console.error('[AuthService] Profile creation error:', JSON.stringify(userError, null, 2));
+      console.error('[AuthService] Auth user ID:', authData.user.id);
+      console.error('[AuthService] Session:', authData.session ? 'Active' : 'None');
       throw new Error(userError.message || 'Failed to create user profile');
     }
     
