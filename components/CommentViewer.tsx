@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { Heart, CheckCircle, Crown, Send, X } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 import { PulseColors } from '@/constants/colors';
 import { Comment } from '@/types';
 import { mockComments } from '@/mocks/comments';
@@ -12,6 +13,7 @@ interface CommentViewerProps {
 }
 
 export default function CommentViewer({ postId, onClose }: CommentViewerProps) {
+  const router = useRouter();
   const [comments, setComments] = useState<Comment[]>(mockComments[postId] || []);
   const [commentText, setCommentText] = useState('');
   const [replyingTo, setReplyingTo] = useState<Comment | null>(null);
@@ -102,12 +104,23 @@ export default function CommentViewer({ postId, onClose }: CommentViewerProps) {
     return `${Math.floor(diffInSeconds / 604800)}w`;
   };
 
+  const handleProfilePress = (username: string) => {
+    router.push(`/user/${username}`);
+    onClose();
+  };
+
   const renderComment = (comment: Comment, isReply = false) => (
     <View key={comment.id} style={[styles.commentContainer, isReply && styles.replyContainer]}>
-      <Image source={{ uri: comment.user.avatar }} style={styles.commentAvatar} />
+      <TouchableOpacity onPress={() => handleProfilePress(comment.user.username)}>
+        <Image source={{ uri: comment.user.avatar }} style={styles.commentAvatar} />
+      </TouchableOpacity>
       <View style={styles.commentContent}>
         <View style={styles.commentHeader}>
-          <View style={styles.commentUserInfo}>
+          <TouchableOpacity 
+            style={styles.commentUserInfo}
+            onPress={() => handleProfilePress(comment.user.username)}
+            activeOpacity={0.7}
+          >
             <Text style={styles.commentDisplayName}>{comment.user.displayName}</Text>
             {comment.user.verified && (
               <CheckCircle size={12} color={PulseColors.dark.secondary} fill={PulseColors.dark.secondary} />
@@ -116,7 +129,7 @@ export default function CommentViewer({ postId, onClose }: CommentViewerProps) {
               <Crown size={12} color={PulseColors.dark.warning} fill={PulseColors.dark.warning} />
             )}
             <Text style={styles.commentTimestamp}>{formatTimestamp(comment.timestamp)}</Text>
-          </View>
+          </TouchableOpacity>
         </View>
         <Text style={styles.commentText}>{comment.content}</Text>
         <View style={styles.commentActions}>
