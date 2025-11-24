@@ -25,7 +25,7 @@ export const challengesService = {
       .single();
 
     if (error) {
-      console.error('[ChallengesService] Error creating challenge:', error);
+      console.error('[ChallengesService] Error creating challenge:', JSON.stringify(error, null, 2));
       throw error;
     }
     return data;
@@ -43,7 +43,7 @@ export const challengesService = {
       .single();
 
     if (error) {
-      console.error('[ChallengesService] Error fetching challenge:', error);
+      console.error('[ChallengesService] Error fetching challenge:', JSON.stringify(error, null, 2));
       throw error;
     }
     return data;
@@ -61,7 +61,7 @@ export const challengesService = {
       .range(offset, offset + limit - 1);
 
     if (error) {
-      console.error('[ChallengesService] Error fetching challenges:', error);
+      console.error('[ChallengesService] Error fetching challenges:', JSON.stringify(error, null, 2));
       throw error;
     }
     
@@ -101,7 +101,7 @@ export const challengesService = {
       .limit(limit);
 
     if (error) {
-      console.error('[ChallengesService] Error fetching active challenges:', error);
+      console.error('[ChallengesService] Error fetching active challenges:', JSON.stringify(error, null, 2));
       throw error;
     }
     
@@ -141,7 +141,7 @@ export const challengesService = {
       .limit(limit);
 
     if (error) {
-      console.error('[ChallengesService] Error fetching user challenges:', error);
+      console.error('[ChallengesService] Error fetching user challenges:', JSON.stringify(error, null, 2));
       throw error;
     }
     
@@ -178,7 +178,7 @@ export const challengesService = {
       .single();
 
     if (error) {
-      console.error('[ChallengesService] Error updating challenge:', error);
+      console.error('[ChallengesService] Error updating challenge:', JSON.stringify(error, null, 2));
       throw error;
     }
     return data;
@@ -192,7 +192,7 @@ export const challengesService = {
       .eq('id', challengeId);
 
     if (error) {
-      console.error('[ChallengesService] Error deleting challenge:', error);
+      console.error('[ChallengesService] Error deleting challenge:', JSON.stringify(error, null, 2));
       throw error;
     }
   },
@@ -206,7 +206,7 @@ export const challengesService = {
       .single();
 
     if (error) {
-      console.error('[ChallengesService] Error fetching views:', error);
+      console.error('[ChallengesService] Error fetching views:', JSON.stringify(error, null, 2));
       throw error;
     }
 
@@ -217,7 +217,7 @@ export const challengesService = {
       .eq('id', challengeId);
 
     if (updateError) {
-      console.error('[ChallengesService] Error updating views:', updateError);
+      console.error('[ChallengesService] Error updating views:', JSON.stringify(updateError, null, 2));
       throw updateError;
     }
     return newViews;
@@ -232,7 +232,7 @@ export const challengesService = {
       .single();
 
     if (error) {
-      console.error('[ChallengesService] Error fetching participants:', error);
+      console.error('[ChallengesService] Error fetching participants:', JSON.stringify(error, null, 2));
       throw error;
     }
 
@@ -243,7 +243,7 @@ export const challengesService = {
       .eq('id', challengeId);
 
     if (updateError) {
-      console.error('[ChallengesService] Error updating participants:', updateError);
+      console.error('[ChallengesService] Error updating participants:', JSON.stringify(updateError, null, 2));
       throw updateError;
     }
     return newCount;
