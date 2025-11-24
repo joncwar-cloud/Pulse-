@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { Activity, LogIn } from 'lucide-react-native';
-import React, { useEffect } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { PulseColors } from '@/constants/colors';
@@ -8,29 +8,20 @@ import { useUser } from '@/contexts/UserContext';
 
 export default function WelcomeScreen() {
   const router = useRouter();
-  const { user, hasOnboarded } = useUser();
+  const { user, isLoading } = useUser();
 
-  useEffect(() => {
-    console.log('[WelcomeScreen] Auth state - user:', !!user, 'hasOnboarded:', hasOnboarded);
-    
-    if (!user) {
-      console.log('[WelcomeScreen] No user, showing welcome screen');
-      return;
-    }
-    
-    if (hasOnboarded === undefined) {
-      console.log('[WelcomeScreen] Onboarding status loading...');
-      return;
-    }
-    
-    if (hasOnboarded === true) {
-      console.log('[WelcomeScreen] User onboarded, redirecting to tabs');
-      router.replace('/(tabs)');
-    } else if (hasOnboarded === false) {
-      console.log('[WelcomeScreen] User not onboarded, redirecting to profile setup');
-      router.replace('/onboarding/profile-setup');
-    }
-  }, [user, hasOnboarded, router]);
+  if (isLoading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Activity size={48} color={PulseColors.dark.accent} />
+        <Text style={{ color: PulseColors.dark.textSecondary, marginTop: 16 }}>Loading...</Text>
+      </View>
+    );
+  }
+
+  if (user) {
+    return null;
+  }
 
   const handleGetStarted = () => {
     console.log('[WelcomeScreen] Redirecting to auth screen (signup)');

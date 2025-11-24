@@ -125,7 +125,7 @@ export default function FeedScreen() {
     );
   }
 
-  if (!user || hasOnboarded === false) {
+  if (!user) {
     return null;
   }
 
