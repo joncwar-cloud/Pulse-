@@ -302,6 +302,112 @@ export interface Database {
           created_at?: string
         }
       }
+      marketplace_listings: {
+        Row: {
+          id: string
+          seller_id: string
+          title: string
+          description: string
+          price: number
+          images: string[]
+          category: string
+          condition: 'new' | 'like-new' | 'good' | 'fair'
+          location: string
+          shipping_available: boolean
+          shipping_price: number | null
+          local_pickup: boolean
+          views: number
+          status: 'active' | 'sold' | 'inactive'
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          seller_id: string
+          title: string
+          description: string
+          price: number
+          images?: string[]
+          category: string
+          condition: 'new' | 'like-new' | 'good' | 'fair'
+          location: string
+          shipping_available?: boolean
+          shipping_price?: number | null
+          local_pickup?: boolean
+          views?: number
+          status?: 'active' | 'sold' | 'inactive'
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          seller_id?: string
+          title?: string
+          description?: string
+          price?: number
+          images?: string[]
+          category?: string
+          condition?: 'new' | 'like-new' | 'good' | 'fair'
+          location?: string
+          shipping_available?: boolean
+          shipping_price?: number | null
+          local_pickup?: boolean
+          views?: number
+          status?: 'active' | 'sold' | 'inactive'
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      challenges: {
+        Row: {
+          id: string
+          creator_id: string
+          title: string
+          description: string
+          hashtag: string
+          thumbnail_url: string
+          participant_count: number
+          view_count: number
+          start_date: string
+          end_date: string | null
+          prize: string | null
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          creator_id: string
+          title: string
+          description: string
+          hashtag: string
+          thumbnail_url?: string
+          participant_count?: number
+          view_count?: number
+          start_date?: string
+          end_date?: string | null
+          prize?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          creator_id?: string
+          title?: string
+          description?: string
+          hashtag?: string
+          thumbnail_url?: string
+          participant_count?: number
+          view_count?: number
+          start_date?: string
+          end_date?: string | null
+          prize?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never

@@ -1,19 +1,30 @@
 import { Stack } from 'expo-router';
 import { Flame, Trophy, Users, Eye, Calendar, Gift, Play } from 'lucide-react-native';
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, FlatList } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, FlatList, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
+import { useQuery } from '@tanstack/react-query';
 import { PulseColors } from '@/constants/colors';
-import { mockChallenges } from '@/mocks/challenges';
+import { challengesService } from '@/services/api/challenges';
 import { Challenge } from '@/types';
 
 export default function ChallengesScreen() {
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'ending'>('all');
 
-  const filteredChallenges = mockChallenges.filter(challenge => {
-    if (activeFilter === 'active') return challenge.isActive;
+  const challengesQuery = useQuery({
+    queryKey: ['challenges', activeFilter],
+    queryFn: async () => {
+      console.log('[Challenges] Fetching challenges', activeFilter);
+      if (activeFilter === 'active') {
+        return await challengesService.getActiveChallenges(50);
+      }
+      return await challengesService.getChallenges(50);
+    },
+  });
+
+  const filteredChallenges = (challengesQuery.data || []).filter(challenge => {
     if (activeFilter === 'ending') {
       const daysLeft = challenge.endDate 
         ? Math.ceil((challenge.endDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
@@ -146,13 +157,24 @@ export default function ChallengesScreen() {
         </ScrollView>
       </View>
 
-      <FlatList
-        data={filteredChallenges}
-        renderItem={renderChallengeCard}
-        keyExtractor={(item) => item.id}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.list}
-      />
+      {challengesQuery.isLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={PulseColors.dark.accent} />
+        </View>
+      ) : filteredChallenges.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Trophy size={64} color={PulseColors.dark.textTertiary} />
+          <Text style={styles.emptyText}>No challenges available</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={filteredChallenges}
+          renderItem={renderChallengeCard}
+          keyExtractor={(item) => item.id}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.list}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -211,6 +233,24 @@ const styles = StyleSheet.create({
   filterTextActive: {
     color: PulseColors.dark.accentLight,
     fontWeight: '700' as const,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 100,
+    paddingHorizontal: 32,
+    gap: 16,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: '600' as const,
+    color: PulseColors.dark.textSecondary,
   },
   list: {
     padding: 16,

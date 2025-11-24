@@ -1,6 +1,7 @@
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
-import { ArrowLeft, MoreVertical, UserPlus, UserCheck, MessageCircle, Share2, Lock } from 'lucide-react-native';
+import { ArrowLeft, MoreVertical, UserPlus, UserCheck, MessageCircle, Share2, Lock, Trophy } from 'lucide-react-native';
 import React, { useState } from 'react';
+import CreateChallengeModal from '@/components/CreateChallengeModal';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
@@ -24,6 +25,7 @@ export default function UserProfileScreen() {
   const { user: currentUser } = useUser();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<TabType>('posts');
+  const [showCreateChallenge, setShowCreateChallenge] = useState(false);
 
   const profileQuery = useQuery({
     queryKey: ['user', username],
@@ -120,7 +122,11 @@ export default function UserProfileScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top']}>  
+      <CreateChallengeModal 
+        visible={showCreateChallenge} 
+        onClose={() => setShowCreateChallenge(false)} 
+      />
       <Stack.Screen options={{ headerShown: false }} />
       
       <View style={styles.header}>
@@ -175,6 +181,13 @@ export default function UserProfileScreen() {
               <Text style={styles.statLabel}>Posts</Text>
             </View>
           </View>
+
+          {isOwnProfile && (
+            <TouchableOpacity style={styles.createChallengeButton} onPress={() => setShowCreateChallenge(true)}>
+              <Trophy size={18} color="#FFFFFF" strokeWidth={2.5} />
+              <Text style={styles.createChallengeText}>Create Challenge</Text>
+            </TouchableOpacity>
+          )}
 
           {!isOwnProfile && (
             <View style={styles.actionButtons}>
@@ -414,6 +427,22 @@ const styles = StyleSheet.create({
     width: 1,
     height: 20,
     backgroundColor: PulseColors.dark.border,
+  },
+  createChallengeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    backgroundColor: PulseColors.dark.warning,
+    width: '100%',
+  },
+  createChallengeText: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+    color: '#FFFFFF',
   },
   actionButtons: {
     flexDirection: 'row',

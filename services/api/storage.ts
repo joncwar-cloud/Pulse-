@@ -119,7 +119,73 @@ export const storageService = {
     return publicData.publicUrl;
   },
 
-  async deleteFile(bucket: 'avatars' | 'posts' | 'communities', filePath: string) {
+  async uploadMarketplaceImage(fileUri: string, userId: string, mimeType: string = 'image/jpeg') {
+    const fileExt = mimeType.split('/')[1] || 'jpg';
+    const fileName = `${userId}-${Date.now()}.${fileExt}`;
+    const filePath = `${userId}/${fileName}`;
+
+    let fileData: ArrayBuffer;
+
+    if (Platform.OS === 'web') {
+      const response = await fetch(fileUri);
+      fileData = await response.arrayBuffer();
+    } else {
+      const base64 = await FileSystem.readAsStringAsync(fileUri, {
+        encoding: 'base64' as any,
+      });
+      fileData = base64ToArrayBuffer(base64);
+    }
+
+    const { data, error } = await supabase.storage
+      .from('marketplace')
+      .upload(filePath, fileData, {
+        contentType: mimeType,
+        upsert: false,
+      });
+
+    if (error) throw error;
+
+    const { data: publicData } = supabase.storage
+      .from('marketplace')
+      .getPublicUrl(data.path);
+
+    return publicData.publicUrl;
+  },
+
+  async uploadChallengeImage(fileUri: string, userId: string, mimeType: string = 'image/jpeg') {
+    const fileExt = mimeType.split('/')[1] || 'jpg';
+    const fileName = `${userId}-${Date.now()}.${fileExt}`;
+    const filePath = `${userId}/${fileName}`;
+
+    let fileData: ArrayBuffer;
+
+    if (Platform.OS === 'web') {
+      const response = await fetch(fileUri);
+      fileData = await response.arrayBuffer();
+    } else {
+      const base64 = await FileSystem.readAsStringAsync(fileUri, {
+        encoding: 'base64' as any,
+      });
+      fileData = base64ToArrayBuffer(base64);
+    }
+
+    const { data, error } = await supabase.storage
+      .from('challenges')
+      .upload(filePath, fileData, {
+        contentType: mimeType,
+        upsert: false,
+      });
+
+    if (error) throw error;
+
+    const { data: publicData } = supabase.storage
+      .from('challenges')
+      .getPublicUrl(data.path);
+
+    return publicData.publicUrl;
+  },
+
+  async deleteFile(bucket: 'avatars' | 'posts' | 'communities' | 'marketplace' | 'challenges', filePath: string) {
     const { error } = await supabase.storage
       .from(bucket)
       .remove([filePath]);
@@ -127,7 +193,7 @@ export const storageService = {
     if (error) throw error;
   },
 
-  getPublicUrl(bucket: 'avatars' | 'posts' | 'communities', filePath: string) {
+  getPublicUrl(bucket: 'avatars' | 'posts' | 'communities' | 'marketplace' | 'challenges', filePath: string) {
     const { data } = supabase.storage
       .from(bucket)
       .getPublicUrl(filePath);

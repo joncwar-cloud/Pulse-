@@ -1,27 +1,42 @@
-import { Stack } from 'expo-router';
-import { ShoppingBag, Search, Bookmark, MapPin, Eye } from 'lucide-react-native';
+import { Stack, useRouter } from 'expo-router';
+import { ShoppingBag, Search, Bookmark, MapPin, Eye, Plus } from 'lucide-react-native';
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
+import { useQuery } from '@tanstack/react-query';
 import { PulseColors } from '@/constants/colors';
-import { mockMarketplaceItems } from '@/mocks/appData';
+import { marketplaceService } from '@/services/api/marketplace';
 
 export default function MarketplaceScreen() {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
 
-  const filteredItems = mockMarketplaceItems.filter((item) =>
-    item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.description.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const listingsQuery = useQuery({
+    queryKey: ['marketplaceListings', searchQuery],
+    queryFn: async () => {
+      console.log('[Marketplace] Fetching listings', searchQuery);
+      if (searchQuery) {
+        return await marketplaceService.searchListings(searchQuery);
+      }
+      return await marketplaceService.getListings(50);
+    },
+  });
+
+  const filteredItems = listingsQuery.data || [];
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
       
       <View style={styles.header}>
-        <ShoppingBag size={28} color={PulseColors.dark.accent} />
-        <Text style={styles.headerTitle}>Marketplace</Text>
+        <View style={styles.headerLeft}>
+          <ShoppingBag size={28} color={PulseColors.dark.accent} />
+          <Text style={styles.headerTitle}>Marketplace</Text>
+        </View>
+        <TouchableOpacity style={styles.createButton} onPress={() => router.push('/create-listing')}>
+          <Plus size={20} color="#FFFFFF" />
+        </TouchableOpacity>
       </View>
 
       <View style={styles.searchSection}>
@@ -36,41 +51,56 @@ export default function MarketplaceScreen() {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.grid}>
-          {filteredItems.map((item) => (
-            <TouchableOpacity key={item.id} style={styles.itemCard}>
-              <View style={styles.imageContainer}>
-                <Image source={{ uri: item.images[0] }} style={styles.itemImage} />
-                <TouchableOpacity style={styles.saveButton}>
-                  <Bookmark
-                    size={20}
-                    color={item.saved ? PulseColors.dark.warning : PulseColors.dark.text}
-                    fill={item.saved ? PulseColors.dark.warning : 'transparent'}
-                  />
-                </TouchableOpacity>
-                <View style={styles.conditionBadge}>
-                  <Text style={styles.conditionText}>
-                    {item.condition === 'new' ? 'New' : 
-                     item.condition === 'like-new' ? 'Like New' :
-                     item.condition === 'good' ? 'Good' : 'Fair'}
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.itemInfo}>
-                <Text style={styles.itemPrice}>${item.price.toLocaleString()}</Text>
-                <Text style={styles.itemTitle} numberOfLines={2}>{item.title}</Text>
-                <View style={styles.locationRow}>
-                  <MapPin size={14} color={PulseColors.dark.textTertiary} />
-                  <Text style={styles.itemLocation} numberOfLines={1}>{item.location}</Text>
-                </View>
-                <View style={styles.statsRow}>
-                  <Eye size={14} color={PulseColors.dark.textTertiary} />
-                  <Text style={styles.viewCount}>{item.views.toLocaleString()} views</Text>
-                </View>
-              </View>
+        {listingsQuery.isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={PulseColors.dark.accent} />
+          </View>
+        ) : filteredItems.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <ShoppingBag size={64} color={PulseColors.dark.textTertiary} />
+            <Text style={styles.emptyText}>No listings found</Text>
+            <TouchableOpacity style={styles.createFirstButton} onPress={() => router.push('/create-listing')}>
+              <Plus size={18} color="#FFFFFF" />
+              <Text style={styles.createFirstText}>Create First Listing</Text>
             </TouchableOpacity>
-          ))}
-        </View>
+          </View>
+        ) : (
+          <View style={styles.grid}>
+            {filteredItems.map((item) => (
+              <TouchableOpacity key={item.id} style={styles.itemCard}>
+                <View style={styles.imageContainer}>
+                  <Image source={{ uri: item.images[0] }} style={styles.itemImage} />
+                  <TouchableOpacity style={styles.saveButton}>
+                    <Bookmark
+                      size={20}
+                      color={item.saved ? PulseColors.dark.warning : PulseColors.dark.text}
+                      fill={item.saved ? PulseColors.dark.warning : 'transparent'}
+                    />
+                  </TouchableOpacity>
+                  <View style={styles.conditionBadge}>
+                    <Text style={styles.conditionText}>
+                      {item.condition === 'new' ? 'New' : 
+                       item.condition === 'like-new' ? 'Like New' :
+                       item.condition === 'good' ? 'Good' : 'Fair'}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.itemInfo}>
+                  <Text style={styles.itemPrice}>${item.price.toLocaleString()}</Text>
+                  <Text style={styles.itemTitle} numberOfLines={2}>{item.title}</Text>
+                  <View style={styles.locationRow}>
+                    <MapPin size={14} color={PulseColors.dark.textTertiary} />
+                    <Text style={styles.itemLocation} numberOfLines={1}>{item.location}</Text>
+                  </View>
+                  <View style={styles.statsRow}>
+                    <Eye size={14} color={PulseColors.dark.textTertiary} />
+                    <Text style={styles.viewCount}>{item.views.toLocaleString()} views</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -84,18 +114,30 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     paddingVertical: 12,
     paddingHorizontal: 16,
     backgroundColor: PulseColors.dark.surface,
-    gap: 8,
     borderBottomWidth: 1,
     borderBottomColor: PulseColors.dark.border,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: '800' as const,
     color: PulseColors.dark.text,
+  },
+  createButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: PulseColors.dark.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   searchSection: {
     flexDirection: 'row',
@@ -124,6 +166,39 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 100,
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 100,
+    paddingHorizontal: 32,
+    gap: 16,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: '600' as const,
+    color: PulseColors.dark.textSecondary,
+  },
+  createFirstButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: PulseColors.dark.accent,
+  },
+  createFirstText: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+    color: '#FFFFFF',
   },
   grid: {
     flexDirection: 'row',
