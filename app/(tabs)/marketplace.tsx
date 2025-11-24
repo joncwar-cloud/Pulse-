@@ -16,11 +16,17 @@ export default function MarketplaceScreen() {
     queryKey: ['marketplaceListings', searchQuery],
     queryFn: async () => {
       console.log('[Marketplace] Fetching listings', searchQuery);
-      if (searchQuery) {
-        return await marketplaceService.searchListings(searchQuery);
+      try {
+        if (searchQuery) {
+          return await marketplaceService.searchListings(searchQuery);
+        }
+        return await marketplaceService.getListings(50);
+      } catch (error: any) {
+        console.error('[Marketplace] Error in query:', error);
+        throw error;
       }
-      return await marketplaceService.getListings(50);
     },
+    retry: false,
   });
 
   const filteredItems = listingsQuery.data || [];

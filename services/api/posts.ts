@@ -3,13 +3,22 @@ import { Post } from '@/types';
 
 export const postsService = {
   async createPost(post: Record<string, any>) {
+    console.log('[PostsService] Creating post:', post);
     const { data, error } = await supabase
       .from('posts')
       .insert([post])
-      .select()
+      .select(`
+        *,
+        user:users!posts_user_id_fkey(*)
+      `)
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('[PostsService] Error creating post:', error);
+      throw error;
+    }
+    
+    console.log('[PostsService] Post created:', data.id);
     return data;
   },
 
@@ -28,6 +37,7 @@ export const postsService = {
   },
 
   async getFeed(limit = 20, offset = 0): Promise<Post[]> {
+    console.log('[PostsService] Fetching feed. Limit:', limit, 'Offset:', offset);
     const { data, error } = await supabase
       .from('posts')
       .select(`
@@ -35,9 +45,14 @@ export const postsService = {
         user:users!posts_user_id_fkey(*)
       `)
       .order('created_at', { ascending: false })
-      .limit(limit * 3);
+      .limit(limit);
 
-    if (error) throw error;
+    if (error) {
+      console.error('[PostsService] Error fetching feed:', error);
+      throw error;
+    }
+    
+    console.log('[PostsService] Fetched posts count:', data?.length || 0);
     
     const posts = (data || []).map((post): Post => ({
       id: post.id,
@@ -71,30 +86,7 @@ export const postsService = {
       challengeId: post.challenge_id,
     }));
 
-    const sortedPosts = posts.sort((a, b) => {
-      const now = Date.now();
-      const hoursSinceA = (now - a.timestamp.getTime()) / (1000 * 60 * 60);
-      const hoursSinceB = (now - b.timestamp.getTime()) / (1000 * 60 * 60);
-      
-      const engagementA = (a.votes * 3) + (a.comments * 5) + (a.shares * 10);
-      const engagementB = (b.votes * 3) + (b.comments * 5) + (b.shares * 10);
-      
-      const recencyA = Math.max(0, 100 - hoursSinceA);
-      const recencyB = Math.max(0, 100 - hoursSinceB);
-      
-      const qualityBoostA = a.quality === 'high' ? 50 : a.quality === 'medium' ? 20 : 0;
-      const qualityBoostB = b.quality === 'high' ? 50 : b.quality === 'medium' ? 20 : 0;
-      
-      const premiumBoostA = a.user.verified ? 30 : a.user.isPremium ? 15 : 0;
-      const premiumBoostB = b.user.verified ? 30 : b.user.isPremium ? 15 : 0;
-      
-      const scoreA = engagementA + recencyA + qualityBoostA + premiumBoostA;
-      const scoreB = engagementB + recencyB + qualityBoostB + premiumBoostB;
-      
-      return scoreB - scoreA;
-    });
-
-    return sortedPosts.slice(offset, offset + limit);
+    return posts;
   },
 
   async getUserPosts(userId: string, limit = 20, offset = 0): Promise<Post[]> {

@@ -75,7 +75,11 @@ export const marketplaceService = {
 
     if (error) {
       console.error('[MarketplaceService] Error fetching listings:', error);
-      throw error;
+      console.error('[MarketplaceService] Error code:', error.code);
+      console.error('[MarketplaceService] Error message:', error.message);
+      console.error('[MarketplaceService] Error details:', error.details);
+      console.error('[MarketplaceService] Error hint:', error.hint);
+      throw new Error(`Failed to fetch listings: ${error.message}`);
     }
     
     return (data || []).map((listing): MarketplaceItem => ({

@@ -48,11 +48,12 @@ export default function FeedScreen() {
     queryKey: ['feed', activeTab],
     queryFn: async () => {
       console.log('[FeedScreen] Fetching posts from database. Active tab:', activeTab);
-      const posts = await postsService.getFeed(50, 0);
+      const posts = await postsService.getFeed(100, 0);
       console.log('[FeedScreen] Fetched posts count:', posts.length);
       return posts;
     },
-    staleTime: 1 * 60 * 1000,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   const feedItems = useMemo(() => {
