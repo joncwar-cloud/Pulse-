@@ -1,16 +1,17 @@
 import { Stack, useRouter } from 'expo-router';
 import {
-  Camera,
+  Camera as CameraIcon,
   Image as ImageIcon,
   Type,
-  Video,
+  Video as VideoIcon,
   X,
   Check,
   MapPin,
   Hash,
   Smile,
+  ImagePlus,
 } from 'lucide-react-native';
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -21,12 +22,16 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PulseColors } from '@/constants/colors';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useUser } from '@/contexts/UserContext';
 import { ContentType } from '@/types';
+import * as ImagePicker from 'expo-image-picker';
+import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
+import { Image } from 'expo-image';
 
 type PostContentType = ContentType;
 
@@ -38,7 +43,7 @@ const POST_TYPES = [
     label: 'Photo',
     color: PulseColors.dark.secondary,
   },
-  { type: 'video' as PostContentType, icon: Video, label: 'Video', color: PulseColors.dark.warning },
+  { type: 'video' as PostContentType, icon: VideoIcon, label: 'Video', color: PulseColors.dark.warning },
 ];
 
 export default function CreatePostScreen() {
@@ -50,6 +55,11 @@ export default function CreatePostScreen() {
   const [location, setLocation] = useState('');
   const [isPosting, setIsPosting] = useState(false);
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
+  const [showMediaPicker, setShowMediaPicker] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
+  const [cameraFacing, setCameraFacing] = useState<CameraType>('back');
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+  const cameraRef = useRef<CameraView>(null);
 
   const handlePost = () => {
     console.log('[CreatePost] Creating post:', { selectedType, content, hashtags, location });
@@ -102,6 +112,85 @@ export default function CreatePostScreen() {
 
   const removeHashtag = (index: number) => {
     setHashtags(hashtags.filter((_, i) => i !== index));
+  };
+
+  const pickFromGallery = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permission Required',
+          'Please allow access to your photo library.'
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: selectedType === 'video' ? 'videos' as ImagePicker.MediaTypeOptions : 'images' as ImagePicker.MediaTypeOptions,
+        allowsMultipleSelection: selectedType === 'image',
+        selectionLimit: selectedType === 'image' ? 10 - selectedImages.length : 1,
+        quality: 0.8,
+      });
+
+      if (!result.canceled) {
+        const newImages = result.assets.map(asset => asset.uri);
+        setSelectedImages([...selectedImages, ...newImages]);
+        console.log('[CreatePost] Images selected:', newImages);
+      }
+    } catch (error) {
+      console.error('[CreatePost] Error picking images:', error);
+      Alert.alert('Error', 'Failed to pick images. Please try again.');
+    }
+    setShowMediaPicker(false);
+  };
+
+  const openCamera = async () => {
+    if (!cameraPermission) {
+      return;
+    }
+
+    if (!cameraPermission.granted) {
+      const { granted } = await requestCameraPermission();
+      if (!granted) {
+        Alert.alert(
+          'Permission Required',
+          'Please allow camera access to take photos.'
+        );
+        return;
+      }
+    }
+
+    setShowMediaPicker(false);
+    setShowCamera(true);
+  };
+
+  const takePicture = async () => {
+    if (cameraRef.current) {
+      try {
+        const photo = await cameraRef.current.takePictureAsync();
+        if (photo) {
+          setSelectedImages([...selectedImages, photo.uri]);
+          console.log('[CreatePost] Photo captured:', photo.uri);
+          setShowCamera(false);
+        }
+      } catch (error) {
+        console.error('[CreatePost] Error taking picture:', error);
+        Alert.alert('Error', 'Failed to take picture. Please try again.');
+      }
+    }
+  };
+
+  const toggleCameraFacing = () => {
+    setCameraFacing(current => (current === 'back' ? 'front' : 'back'));
+  };
+
+  const handleAddMedia = () => {
+    if (selectedImages.length >= 10 && selectedType === 'image') {
+      Alert.alert('Limit Reached', 'You can upload up to 10 photos');
+      return;
+    }
+    setShowMediaPicker(true);
   };
 
   return (
@@ -206,53 +295,19 @@ export default function CreatePostScreen() {
                 <Text style={styles.sectionTitle}>Photos ({selectedImages.length}/10)</Text>
                 <TouchableOpacity
                   style={styles.addMoreButton}
-                  onPress={() => {
-                    if (selectedImages.length >= 10) {
-                      Alert.alert('Limit Reached', 'You can upload up to 10 photos');
-                      return;
-                    }
-                    Alert.alert(
-                      'Add Photo',
-                      'Photo upload requires backend integration. For now, using placeholder.',
-                      [{
-                        text: 'OK',
-                        onPress: () => {
-                          const placeholders = [
-                            'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800',
-                            'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=800',
-                            'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=800',
-                            'https://images.unsplash.com/photo-1426604966848-d7adac402bff?w=800',
-                            'https://images.unsplash.com/photo-1472214103451-9374bd1c798e?w=800',
-                          ];
-                          const randomImage = placeholders[Math.floor(Math.random() * placeholders.length)];
-                          setSelectedImages([...selectedImages, randomImage]);
-                        }
-                      }]
-                    );
-                  }}
+                  onPress={handleAddMedia}
                   disabled={selectedImages.length >= 10}
                 >
-                  <Camera size={20} color={selectedImages.length >= 10 ? PulseColors.dark.textTertiary : PulseColors.dark.accent} />
+                  <ImagePlus size={20} color={selectedImages.length >= 10 ? PulseColors.dark.textTertiary : PulseColors.dark.accent} />
                   <Text style={[styles.addMoreButtonText, selectedImages.length >= 10 && styles.addMoreButtonTextDisabled]}>Add Photo</Text>
                 </TouchableOpacity>
               </View>
               {selectedImages.length === 0 ? (
                 <TouchableOpacity
                   style={styles.mediaUploadCard}
-                  onPress={() => {
-                    Alert.alert(
-                      'Add Photo',
-                      'Photo upload requires backend integration. For now, using placeholder.',
-                      [{
-                        text: 'OK',
-                        onPress: () => {
-                          setSelectedImages(['https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800']);
-                        }
-                      }]
-                    );
-                  }}
+                  onPress={handleAddMedia}
                 >
-                  <Camera size={48} color={PulseColors.dark.textTertiary} />
+                  <ImagePlus size={48} color={PulseColors.dark.textTertiary} />
                   <Text style={styles.mediaUploadText}>Tap to add photos</Text>
                   <Text style={styles.mediaUploadSubtext}>Add up to 10 photos</Text>
                 </TouchableOpacity>
@@ -261,9 +316,11 @@ export default function CreatePostScreen() {
                   <View style={styles.imagesGrid}>
                     {selectedImages.map((image, index) => (
                       <View key={index} style={styles.imagePreviewContainer}>
-                        <View style={styles.imagePreview}>
-                          <Text style={styles.imagePreviewPlaceholder}>Photo {index + 1}</Text>
-                        </View>
+                        <Image
+                          source={{ uri: image }}
+                          style={styles.imagePreview}
+                          contentFit="cover"
+                        />
                         <TouchableOpacity
                           style={styles.removeImageButton}
                           onPress={() => setSelectedImages(selectedImages.filter((_, i) => i !== index))}
@@ -290,20 +347,29 @@ export default function CreatePostScreen() {
           {selectedType === 'video' && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Video</Text>
-              <TouchableOpacity
-                style={styles.mediaUploadCard}
-                onPress={() => {
-                  Alert.alert(
-                    'Add Video',
-                    'Video upload requires backend integration',
-                    [{ text: 'OK' }]
-                  );
-                }}
-              >
-                <Video size={48} color={PulseColors.dark.textTertiary} />
-                <Text style={styles.mediaUploadText}>Tap to add video</Text>
-                <Text style={styles.mediaUploadSubtext}>Up to 60 seconds</Text>
-              </TouchableOpacity>
+              {selectedImages.length === 0 ? (
+                <TouchableOpacity
+                  style={styles.mediaUploadCard}
+                  onPress={handleAddMedia}
+                >
+                  <VideoIcon size={48} color={PulseColors.dark.textTertiary} />
+                  <Text style={styles.mediaUploadText}>Tap to add video</Text>
+                  <Text style={styles.mediaUploadSubtext}>Up to 60 seconds</Text>
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.videoPreviewContainer}>
+                  <View style={styles.videoPreview}>
+                    <VideoIcon size={48} color={PulseColors.dark.textSecondary} />
+                    <Text style={styles.videoPreviewText}>Video Selected</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.removeImageButton}
+                    onPress={() => setSelectedImages([])}
+                  >
+                    <X size={16} color={PulseColors.dark.text} />
+                  </TouchableOpacity>
+                </View>
+              )}
               <TextInput
                 style={styles.captionInput}
                 placeholder="Add a caption..."
@@ -365,6 +431,103 @@ export default function CreatePostScreen() {
           <View style={{ height: 40 }} />
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <Modal
+        visible={showMediaPicker}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowMediaPicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.mediaPickerModal}>
+            <Text style={styles.modalTitle}>Add {selectedType === 'video' ? 'Video' : 'Photo'}</Text>
+            
+            <TouchableOpacity
+              style={styles.mediaOption}
+              onPress={openCamera}
+            >
+              <View style={styles.mediaOptionIcon}>
+                <CameraIcon size={28} color={PulseColors.dark.accent} />
+              </View>
+              <View style={styles.mediaOptionContent}>
+                <Text style={styles.mediaOptionTitle}>Take {selectedType === 'video' ? 'Video' : 'Photo'}</Text>
+                <Text style={styles.mediaOptionSubtitle}>Use camera to capture</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.mediaOption}
+              onPress={pickFromGallery}
+            >
+              <View style={styles.mediaOptionIcon}>
+                <ImageIcon size={28} color={PulseColors.dark.secondary} />
+              </View>
+              <View style={styles.mediaOptionContent}>
+                <Text style={styles.mediaOptionTitle}>Choose from Gallery</Text>
+                <Text style={styles.mediaOptionSubtitle}>Select from your library</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={() => setShowMediaPicker(false)}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showCamera}
+        animationType="slide"
+        onRequestClose={() => setShowCamera(false)}
+      >
+        <View style={styles.cameraContainer}>
+          {Platform.OS !== 'web' ? (
+            <CameraView style={styles.camera} facing={cameraFacing} ref={cameraRef}>
+              <View style={styles.cameraHeader}>
+                <TouchableOpacity
+                  style={styles.cameraCloseButton}
+                  onPress={() => setShowCamera(false)}
+                >
+                  <X size={28} color="#FFFFFF" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.cameraFlipButton}
+                  onPress={toggleCameraFacing}
+                >
+                  <CameraIcon size={24} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.cameraControls}>
+                <TouchableOpacity
+                  style={styles.captureButton}
+                  onPress={takePicture}
+                >
+                  <View style={styles.captureButtonInner} />
+                </TouchableOpacity>
+              </View>
+            </CameraView>
+          ) : (
+            <View style={styles.cameraFallback}>
+              <Text style={styles.cameraFallbackText}>
+                Camera not available on web. Please use gallery instead.
+              </Text>
+              <TouchableOpacity
+                style={styles.cameraFallbackButton}
+                onPress={() => {
+                  setShowCamera(false);
+                  pickFromGallery();
+                }}
+              >
+                <Text style={styles.cameraFallbackButtonText}>Open Gallery</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -656,13 +819,6 @@ const styles = StyleSheet.create({
     backgroundColor: PulseColors.dark.surface,
     borderWidth: 2,
     borderColor: PulseColors.dark.border,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  imagePreviewPlaceholder: {
-    fontSize: 14,
-    color: PulseColors.dark.textSecondary,
-    fontWeight: '600' as const,
   },
   removeImageButton: {
     position: 'absolute' as const,
@@ -676,5 +832,160 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 2,
     borderColor: PulseColors.dark.background,
+  },
+  videoPreviewContainer: {
+    position: 'relative' as const,
+    marginBottom: 12,
+  },
+  videoPreview: {
+    height: 200,
+    borderRadius: 12,
+    backgroundColor: PulseColors.dark.surface,
+    borderWidth: 2,
+    borderColor: PulseColors.dark.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
+  },
+  videoPreviewText: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: PulseColors.dark.text,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'flex-end',
+  },
+  mediaPickerModal: {
+    backgroundColor: PulseColors.dark.surface,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: 40,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700' as const,
+    color: PulseColors.dark.text,
+    marginBottom: 20,
+    textAlign: 'center' as const,
+  },
+  mediaOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: PulseColors.dark.background,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    gap: 16,
+  },
+  mediaOptionIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: PulseColors.dark.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: PulseColors.dark.border,
+  },
+  mediaOptionContent: {
+    flex: 1,
+  },
+  mediaOptionTitle: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: PulseColors.dark.text,
+    marginBottom: 4,
+  },
+  mediaOptionSubtitle: {
+    fontSize: 14,
+    color: PulseColors.dark.textSecondary,
+  },
+  cancelButton: {
+    backgroundColor: PulseColors.dark.background,
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 8,
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: PulseColors.dark.accent,
+  },
+  cameraContainer: {
+    flex: 1,
+    backgroundColor: PulseColors.dark.background,
+  },
+  camera: {
+    flex: 1,
+  },
+  cameraHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingTop: 60,
+    paddingHorizontal: 20,
+  },
+  cameraCloseButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cameraFlipButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cameraControls: {
+    position: 'absolute' as const,
+    bottom: 40,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  captureButton: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  captureButtonInner: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#FFFFFF',
+  },
+  cameraFallback: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+    gap: 20,
+  },
+  cameraFallbackText: {
+    fontSize: 16,
+    color: PulseColors.dark.text,
+    textAlign: 'center' as const,
+  },
+  cameraFallbackButton: {
+    backgroundColor: PulseColors.dark.accent,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 20,
+  },
+  cameraFallbackButtonText: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: '#FFFFFF',
   },
 });
