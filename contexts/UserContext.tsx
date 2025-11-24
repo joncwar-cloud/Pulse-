@@ -156,8 +156,9 @@ export const [UserProvider, useUser] = createContextHook(() => {
 
   const saveUserMutation = useMutation({
     mutationFn: async (updates: Partial<UserProfile>) => {
-      if (!user?.id) throw new Error('No user to update');
-      const updated = await authService.updateUserProfile(user.id, {
+      const userId = user?.id || supabaseUser?.id;
+      if (!userId) throw new Error('No user to update');
+      const updated = await authService.updateUserProfile(userId, {
         username: updates.username,
         display_name: updates.displayName,
         avatar_url: updates.avatar,
@@ -172,8 +173,9 @@ export const [UserProvider, useUser] = createContextHook(() => {
 
   const saveOnboardedMutation = useMutation({
     mutationFn: async (value: boolean) => {
-      if (!user?.id) throw new Error('No user to update');
-      await AsyncStorage.setItem(`${STORAGE_KEY_ONBOARDED}_${user.id}`, value.toString());
+      const userId = user?.id || supabaseUser?.id;
+      if (!userId) throw new Error('No user to update');
+      await AsyncStorage.setItem(`${STORAGE_KEY_ONBOARDED}_${userId}`, value.toString());
       return value;
     },
   });
@@ -247,17 +249,23 @@ export const [UserProvider, useUser] = createContextHook(() => {
   };
 
   const updateProfile = async (updates: Partial<UserProfile>) => {
-    if (!user) return;
+    if (!user && !supabaseUser) return;
     console.log('[UserContext] Updating profile:', updates);
-    const updated = { ...user, ...updates };
-    setUser(updated);
+    
+    if (user) {
+      const updated = { ...user, ...updates };
+      setUser(updated);
+    }
+    
     try {
       await saveUserMutation.mutateAsync(updates);
       await refreshUser();
     } catch (error: any) {
       const errorMessage = error?.message || 'Failed to update profile';
       console.error('[UserContext] Error updating profile:', errorMessage, error);
-      setUser(user);
+      if (user) {
+        setUser(user);
+      }
       throw new Error(errorMessage);
     }
   };
@@ -268,7 +276,7 @@ export const [UserProvider, useUser] = createContextHook(() => {
     const shouldActivateChildMode = age < 18;
     console.log('[UserContext] User age:', age, 'Child mode:', shouldActivateChildMode);
 
-    if (user) {
+    if (user || supabaseUser) {
       await updateProfile({
         interests,
         dateOfBirth,
