@@ -33,10 +33,11 @@ export const authService = {
     if (!authData.user) throw new Error('User creation failed');
 
     console.log('[AuthService] User created:', authData.user.id);
-    console.log('[AuthService] Session:', authData.session ? 'Active' : 'Pending email confirmation');
+    console.log('[AuthService] Session available:', !!authData.session);
     
     if (!authData.session) {
-      console.log('[AuthService] No session - email confirmation required');
+      console.log('[AuthService] No immediate session - this means email confirmation is still enabled in Supabase');
+      console.log('[AuthService] User can still sign in after clicking confirmation link');
       return { 
         user: authData.user, 
         profile: null,
@@ -44,31 +45,9 @@ export const authService = {
       };
     }
     
-    console.log('[AuthService] Session active, setting session');
-    console.log('[AuthService] Session access token:', authData.session.access_token ? 'Present' : 'Missing');
-    
-    const { error: sessionError } = await supabase.auth.setSession({
-      access_token: authData.session.access_token,
-      refresh_token: authData.session.refresh_token,
-    });
-    
-    if (sessionError) {
-      console.error('[AuthService] Session set error:', JSON.stringify(sessionError, null, 2));
-      throw new Error('Failed to establish session');
-    }
-    
-    console.log('[AuthService] Session set successfully');
-    await new Promise(resolve => setTimeout(resolve, 200));
-    
-    const { data: { user: currentAuthUser } } = await supabase.auth.getUser();
-    console.log('[AuthService] Current auth user after session:', currentAuthUser?.id);
-    
-    if (!currentAuthUser || currentAuthUser.id !== authData.user.id) {
-      console.error('[AuthService] Session verification failed');
-      throw new Error('Session verification failed');
-    }
-    
     console.log('[AuthService] Creating user profile for user:', authData.user.id);
+    
+    await new Promise(resolve => setTimeout(resolve, 300));
     
     const { data: user, error: userError } = await supabase
       .from('users')
@@ -87,18 +66,19 @@ export const authService = {
 
     if (userError) {
       console.error('[AuthService] Profile creation error:', JSON.stringify(userError, null, 2));
-      console.error('[AuthService] Auth user ID:', authData.user.id);
-      console.error('[AuthService] Session:', authData.session ? 'Active' : 'None');
       
       if (userError.code === '42501') {
-        console.error('[AuthService] RLS Policy violation - auth.uid() does not match user.id');
-        console.error('[AuthService] Please verify RLS policies in Supabase dashboard');
+        console.error('[AuthService] RLS Policy violation');
+        console.error('[AuthService] This likely means:');
+        console.error('[AuthService] 1. Email confirmation is still required in Supabase settings');
+        console.error('[AuthService] 2. Or RLS policy needs adjustment');
+        throw new Error('Account created but profile setup failed. Please contact support or check your email for confirmation.');
       }
       
       throw new Error(userError.message || 'Failed to create user profile');
     }
     
-    console.log('[AuthService] User created successfully');
+    console.log('[AuthService] User profile created successfully');
     return { user: authData.user, profile: user };
   },
 

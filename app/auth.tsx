@@ -81,21 +81,31 @@ export default function AuthScreen() {
           avatar_url: avatarUri || selectedPreset,
         };
         const result = await authService.signUp(email, password, profileData);
-        console.log('[AuthScreen] Sign up successful');
+        console.log('[AuthScreen] Sign up result:', {
+          hasProfile: !!result.profile,
+          requiresConfirmation: result.requiresEmailConfirmation
+        });
         
         if (result.requiresEmailConfirmation) {
           Alert.alert(
-            'Check Your Email',
-            'Please check your email to verify your account before signing in.',
-            [{ text: 'OK' }]
+            'Almost There!',
+            'Your account has been created. Please check your email and click the confirmation link to activate your account. After confirming, you can sign in.',
+            [{ 
+              text: 'OK',
+              onPress: () => {
+                setMode('signin');
+                setEmail('');
+                setPassword('');
+              }
+            }]
           );
           return;
         }
         
         await new Promise(resolve => setTimeout(resolve, 500));
         
-        console.log('[AuthScreen] Redirecting to onboarding after signup');
-        router.replace('/onboarding');
+        console.log('[AuthScreen] Account created successfully, redirecting');
+        router.replace('/(tabs)');
       }
     } catch (err: any) {
       const errorMessage = err?.message || 'Authentication failed. Please try again.';
