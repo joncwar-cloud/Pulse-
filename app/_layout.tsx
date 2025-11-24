@@ -44,6 +44,7 @@ function RootLayoutNav() {
     const inAuthGroup = segments[0] === 'auth';
     const inOnboardingGroup = segments[0] === 'onboarding';
     const inTabsGroup = segments[0] === '(tabs)';
+    const inContentRoute = ['community', 'post', 'user', 'edit-profile', 'create-community', 'search'].includes(segments[0]);
 
     console.log('[RootLayoutNav] Current segment:', segments[0]);
     console.log('[RootLayoutNav] Has supabase user:', !!supabaseUser);
@@ -69,8 +70,9 @@ function RootLayoutNav() {
         router.replace('/onboarding/interests');
       }
     } else {
-      console.log('[RootLayoutNav] User is authenticated and onboarded, redirecting to tabs');
-      if (!inTabsGroup) {
+      console.log('[RootLayoutNav] User is authenticated and onboarded');
+      if (!inTabsGroup && !inContentRoute) {
+        console.log('[RootLayoutNav] Not in tabs or content route, redirecting to tabs');
         router.replace('/(tabs)');
       }
     }
@@ -95,6 +97,48 @@ function RootLayoutNav() {
           presentation: 'card',
           animation: 'fade',
           gestureEnabled: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="community/[id]" 
+        options={{ 
+          headerShown: false,
+          presentation: 'card',
+        }} 
+      />
+      <Stack.Screen 
+        name="post/[id]" 
+        options={{ 
+          headerShown: false,
+          presentation: 'card',
+        }} 
+      />
+      <Stack.Screen 
+        name="user/[username]" 
+        options={{ 
+          headerShown: false,
+          presentation: 'card',
+        }} 
+      />
+      <Stack.Screen 
+        name="edit-profile" 
+        options={{ 
+          headerShown: false,
+          presentation: 'modal',
+        }} 
+      />
+      <Stack.Screen 
+        name="create-community" 
+        options={{ 
+          headerShown: false,
+          presentation: 'modal',
+        }} 
+      />
+      <Stack.Screen 
+        name="search" 
+        options={{ 
+          headerShown: false,
+          presentation: 'card',
         }} 
       />
       <Stack.Screen name="+not-found" options={{ title: 'Oops!' }} />
