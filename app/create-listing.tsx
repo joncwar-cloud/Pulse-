@@ -50,24 +50,47 @@ export default function CreateListingScreen() {
         throw new Error('Please add at least one image');
       }
 
+      const priceValue = parseFloat(price);
+      if (isNaN(priceValue) || priceValue <= 0) {
+        throw new Error('Please enter a valid price');
+      }
+
       console.log('[CreateListing] Creating listing');
-      return await marketplaceService.createListing({
-        seller_id: user.id,
-        title,
-        description,
-        price: parseFloat(price),
-        images,
-        category,
-        condition,
-        location,
-        shipping_available: shippingAvailable,
-        shipping_price: shippingPrice ? parseFloat(shippingPrice) : undefined,
-        local_pickup: localPickup,
-      });
+      try {
+        return await marketplaceService.createListing({
+          seller_id: user.id,
+          title,
+          description,
+          price: priceValue,
+          images,
+          category,
+          condition,
+          location,
+          shipping_available: shippingAvailable,
+          shipping_price: shippingPrice ? parseFloat(shippingPrice) : undefined,
+          local_pickup: localPickup,
+        });
+      } catch (error: any) {
+        console.error('[CreateListing] Service error:', error);
+        if (error.message?.includes('Failed to fetch') || error.message?.includes('Network')) {
+          throw new Error('Network error. Please check your internet connection and try again.');
+        }
+        throw error;
+      }
     },
     onSuccess: () => {
       console.log('[CreateListing] Listing created successfully');
       queryClient.invalidateQueries({ queryKey: ['marketplaceListings'] });
+      setTitle('');
+      setDescription('');
+      setPrice('');
+      setCategory('');
+      setCondition('good');
+      setLocation('');
+      setShippingAvailable(false);
+      setShippingPrice('');
+      setLocalPickup(true);
+      setImages([]);
       Alert.alert('Success', 'Your listing has been created!', [
         { text: 'OK', onPress: () => router.back() }
       ]);
