@@ -25,7 +25,7 @@ const CONDITIONS = [
 
 export default function CreateListingScreen() {
   const router = useRouter();
-  const { user } = useUser();
+  const { user, supabaseUser } = useUser();
   const queryClient = useQueryClient();
 
   const [title, setTitle] = useState('');
@@ -42,7 +42,14 @@ export default function CreateListingScreen() {
 
   const createListingMutation = useMutation({
     mutationFn: async () => {
-      if (!user) throw new Error('User not authenticated');
+      const userId = user?.id || supabaseUser?.id;
+      
+      if (!userId) {
+        console.error('[CreateListing] No user ID available');
+        console.error('[CreateListing] user:', !!user, 'supabaseUser:', !!supabaseUser);
+        throw new Error('User not authenticated. Please sign in again.');
+      }
+      
       if (!title || !description || !price || !category || !location) {
         throw new Error('Please fill in all required fields');
       }
@@ -55,10 +62,10 @@ export default function CreateListingScreen() {
         throw new Error('Please enter a valid price');
       }
 
-      console.log('[CreateListing] Creating listing');
+      console.log('[CreateListing] Creating listing with userId:', userId);
       try {
         return await marketplaceService.createListing({
-          seller_id: user.id,
+          seller_id: userId,
           title,
           description,
           price: priceValue,
@@ -178,9 +185,9 @@ export default function CreateListingScreen() {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Create Listing</Text>
         <TouchableOpacity 
-          style={[styles.createButton, (!title || !description || !price || !category || !location || images.length === 0) && styles.createButtonDisabled]} 
+          style={[styles.createButton, (!title || !description || !price || !category || !location || images.length === 0 || (!user && !supabaseUser)) && styles.createButtonDisabled]} 
           onPress={handleCreate}
-          disabled={createListingMutation.isPending || !title || !description || !price || !category || !location || images.length === 0}
+          disabled={createListingMutation.isPending || !title || !description || !price || !category || !location || images.length === 0 || (!user && !supabaseUser)}
         >
           {createListingMutation.isPending ? (
             <ActivityIndicator size="small" color="#FFFFFF" />
