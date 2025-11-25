@@ -219,12 +219,22 @@ export const authService = {
   },
 
   async getSession() {
-    const { data: { session }, error } = await supabase.auth.getSession();
-    if (error) {
-      console.error('[AuthService] Get session error:', JSON.stringify(error, null, 2));
-      throw new Error(error.message || 'Failed to get session');
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error) {
+        console.error('[AuthService] Get session error:', JSON.stringify(error, null, 2));
+        throw new Error(error.message || 'Failed to get session');
+      }
+      return session;
+    } catch (error: any) {
+      console.error('[AuthService] Failed to get session:', error);
+      console.error('[AuthService] Error name:', error?.name);
+      console.error('[AuthService] Error message:', error?.message);
+      if (error?.message?.includes('fetch') || error?.name === 'TypeError') {
+        throw new Error('Network error: Unable to connect to authentication service. Please check your internet connection.');
+      }
+      throw error;
     }
-    return session;
   },
 
   async getCurrentUser() {

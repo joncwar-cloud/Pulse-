@@ -11,6 +11,7 @@ import { MonetizationProvider } from '@/contexts/MonetizationContext';
 import { CommunityProvider } from '@/contexts/CommunityContext';
 import { NotificationProvider } from '@/contexts/NotificationContext';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { NetworkStatusIndicator } from '@/components/NetworkStatusIndicator';
 import { PulseColors } from '@/constants/colors';
 
 SplashScreen.preventAutoHideAsync();
@@ -18,14 +19,25 @@ SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 2,
+      retry: (failureCount, error: any) => {
+        if (error?.message?.includes('fetch') || error?.message?.includes('Network')) {
+          return failureCount < 3;
+        }
+        return failureCount < 2;
+      },
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
       staleTime: 60000,
       gcTime: 300000,
       refetchOnWindowFocus: false,
       refetchOnReconnect: true,
     },
     mutations: {
-      retry: 1,
+      retry: (failureCount, error: any) => {
+        if (error?.message?.includes('fetch') || error?.message?.includes('Network')) {
+          return failureCount < 2;
+        }
+        return failureCount < 1;
+      },
     },
   },
 });
@@ -177,6 +189,7 @@ export default function RootLayout() {
   return (
     <ErrorBoundary>
       <GestureHandlerRootView style={{ flex: 1 }}>
+        <NetworkStatusIndicator />
         <QueryClientProvider client={queryClient}>
           <NotificationProvider>
             <UserProvider>

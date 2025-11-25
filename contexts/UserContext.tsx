@@ -20,6 +20,7 @@ export const [UserProvider, useUser] = createContextHook(() => {
     setAuthLoading(true);
     
     authService.getSession().then(async (session) => {
+      console.log('[UserContext] getSession completed');
       console.log('[UserContext] Initial session:', session ? 'Found' : 'None');
       console.log('[UserContext] Session user ID:', session?.user?.id);
       if (session?.user) {
@@ -74,6 +75,15 @@ export const [UserProvider, useUser] = createContextHook(() => {
       setAuthLoading(false);
     }).catch(error => {
       console.error('[UserContext] Error getting initial session:', error);
+      console.error('[UserContext] Error type:', error?.constructor?.name);
+      console.error('[UserContext] Error message:', error?.message);
+      if (error?.message?.includes('fetch')) {
+        console.error('[UserContext] Network error detected. Check:');
+        console.error('[UserContext] 1. Internet connection');
+        console.error('[UserContext] 2. Supabase URL is accessible');
+        console.error('[UserContext] 3. CORS settings on Supabase');
+        console.error('[UserContext] 4. API key is valid');
+      }
       setAuthLoading(false);
       setUser(null);
     });
