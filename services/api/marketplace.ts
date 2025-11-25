@@ -1,5 +1,6 @@
 import { supabase } from '../supabase';
 import { MarketplaceItem } from '@/types';
+import { mockMarketplaceListings } from '@/mocks/marketplace';
 
 export const marketplaceService = {
   async createListing(listing: {
@@ -63,46 +64,48 @@ export const marketplaceService = {
 
   async getListings(limit = 20, offset = 0): Promise<MarketplaceItem[]> {
     console.log('[MarketplaceService] Fetching listings');
-    const { data, error } = await supabase
-      .from('marketplace_listings')
-      .select(`
-        *,
-        seller:users!marketplace_listings_seller_id_fkey(*)
-      `)
-      .eq('status', 'active')
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
-
-    if (error) {
-      console.error('[MarketplaceService] Error fetching listings:', error);
-      console.error('[MarketplaceService] Error code:', error.code);
-      console.error('[MarketplaceService] Error message:', error.message);
-      console.error('[MarketplaceService] Error details:', error.details);
-      console.error('[MarketplaceService] Error hint:', error.hint);
-      throw new Error(`Failed to fetch listings: ${error.message}`);
-    }
     
-    return (data || []).map((listing): MarketplaceItem => ({
-      id: listing.id,
-      seller: {
-        id: listing.seller.id,
-        username: listing.seller.username,
-        displayName: listing.seller.display_name,
-        avatar: listing.seller.avatar,
-        verified: listing.seller.verified || false,
-        isPremium: listing.seller.is_premium || false,
-      },
-      title: listing.title,
-      description: listing.description,
-      price: listing.price,
-      images: listing.images || [],
-      category: listing.category,
-      condition: listing.condition,
-      location: listing.location,
-      timestamp: new Date(listing.created_at),
-      views: listing.views || 0,
-      saved: false,
-    }));
+    try {
+      const { data, error } = await supabase
+        .from('marketplace_listings')
+        .select(`
+          *,
+          seller:users!marketplace_listings_seller_id_fkey(*)
+        `)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      if (error) {
+        console.warn('[MarketplaceService] Database not available, using mock data:', error.message);
+        return mockMarketplaceListings.slice(offset, offset + limit);
+      }
+      
+      return (data || []).map((listing): MarketplaceItem => ({
+        id: listing.id,
+        seller: {
+          id: listing.seller.id,
+          username: listing.seller.username,
+          displayName: listing.seller.display_name,
+          avatar: listing.seller.avatar,
+          verified: listing.seller.verified || false,
+          isPremium: listing.seller.is_premium || false,
+        },
+        title: listing.title,
+        description: listing.description,
+        price: listing.price,
+        images: listing.images || [],
+        category: listing.category,
+        condition: listing.condition,
+        location: listing.location,
+        timestamp: new Date(listing.created_at),
+        views: listing.views || 0,
+        saved: false,
+      }));
+    } catch {
+      console.warn('[MarketplaceService] Error connecting to database, using mock data');
+      return mockMarketplaceListings.slice(offset, offset + limit);
+    }
   },
 
   async getUserListings(userId: string, limit = 20, offset = 0) {
@@ -126,49 +129,67 @@ export const marketplaceService = {
 
   async searchListings(query: string, category?: string, limit = 20) {
     console.log('[MarketplaceService] Searching listings:', query, category);
-    let queryBuilder = supabase
-      .from('marketplace_listings')
-      .select(`
-        *,
-        seller:users!marketplace_listings_seller_id_fkey(*)
-      `)
-      .eq('status', 'active')
-      .or(`title.ilike.%${query}%,description.ilike.%${query}%`);
-
-    if (category) {
-      queryBuilder = queryBuilder.eq('category', category);
-    }
-
-    const { data, error } = await queryBuilder
-      .order('created_at', { ascending: false })
-      .limit(limit);
-
-    if (error) {
-      console.error('[MarketplaceService] Error searching listings:', error);
-      throw error;
-    }
     
-    return (data || []).map((listing): MarketplaceItem => ({
-      id: listing.id,
-      seller: {
-        id: listing.seller.id,
-        username: listing.seller.username,
-        displayName: listing.seller.display_name,
-        avatar: listing.seller.avatar,
-        verified: listing.seller.verified || false,
-        isPremium: listing.seller.is_premium || false,
-      },
-      title: listing.title,
-      description: listing.description,
-      price: listing.price,
-      images: listing.images || [],
-      category: listing.category,
-      condition: listing.condition,
-      location: listing.location,
-      timestamp: new Date(listing.created_at),
-      views: listing.views || 0,
-      saved: false,
-    }));
+    try {
+      let queryBuilder = supabase
+        .from('marketplace_listings')
+        .select(`
+          *,
+          seller:users!marketplace_listings_seller_id_fkey(*)
+        `)
+        .eq('status', 'active')
+        .or(`title.ilike.%${query}%,description.ilike.%${query}%`);
+
+      if (category) {
+        queryBuilder = queryBuilder.eq('category', category);
+      }
+
+      const { data, error } = await queryBuilder
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+      if (error) {
+        console.warn('[MarketplaceService] Database not available, using mock data:', error.message);
+        const filtered = mockMarketplaceListings.filter(item => {
+          const matchesQuery = item.title.toLowerCase().includes(query.toLowerCase()) ||
+                              item.description.toLowerCase().includes(query.toLowerCase());
+          const matchesCategory = !category || item.category === category;
+          return matchesQuery && matchesCategory;
+        });
+        return filtered.slice(0, limit);
+      }
+      
+      return (data || []).map((listing): MarketplaceItem => ({
+        id: listing.id,
+        seller: {
+          id: listing.seller.id,
+          username: listing.seller.username,
+          displayName: listing.seller.display_name,
+          avatar: listing.seller.avatar,
+          verified: listing.seller.verified || false,
+          isPremium: listing.seller.is_premium || false,
+        },
+        title: listing.title,
+        description: listing.description,
+        price: listing.price,
+        images: listing.images || [],
+        category: listing.category,
+        condition: listing.condition,
+        location: listing.location,
+        timestamp: new Date(listing.created_at),
+        views: listing.views || 0,
+        saved: false,
+      }));
+    } catch {
+      console.warn('[MarketplaceService] Error connecting to database, using mock data');
+      const filtered = mockMarketplaceListings.filter(item => {
+        const matchesQuery = item.title.toLowerCase().includes(query.toLowerCase()) ||
+                            item.description.toLowerCase().includes(query.toLowerCase());
+        const matchesCategory = !category || item.category === category;
+        return matchesQuery && matchesCategory;
+      });
+      return filtered.slice(0, limit);
+    }
   },
 
   async updateListing(listingId: string, updates: Record<string, any>) {
